@@ -14,7 +14,7 @@ SealRuntime runtime;
 SensorSnapshot previousSensors;
 
 unsigned long lastPollAt = 0;
-unsigned long lastLogAt  = 0;
+unsigned long lastOledAt = 0;
 
 OledDisplay             oled;
 HybridImpactClassifier  impactClassifier;
@@ -24,11 +24,14 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
+#ifndef IMPACT_DATA_COLLECTION
+  oled.begin();
+#endif
+
   setupSensors();
 
 #ifndef IMPACT_DATA_COLLECTION
   connectNetwork();
-  oled.begin();
   impactClassifier.begin();
 #endif
 
@@ -36,11 +39,29 @@ void setup() {
   Serial.println("SMART SEAL v0.1");
   Serial.print("light baseline=");
   Serial.println(getLightBaseline());
+  Serial.print("oled address=0x");
+  Serial.println(OLED_ADDR, HEX);
   Serial.print("accelerometer=");
   Serial.println(isAccelerometerAvailable() ? "ready" : "unavailable");
+  if (isAccelerometerAvailable()) {
+    Serial.print("accelerometer address=0x");
+    if (getAccelerometerAddress() < 16) {
+      Serial.print("0");
+    }
+    Serial.println(getAccelerometerAddress(), HEX);
+  }
 
 #ifdef IMPACT_DATA_COLLECTION
   Serial.println("timestamp_ms,accel_x,accel_y,accel_z");
+#else
+  oled.showSensorDebug(
+    isAccelerometerAvailable(),
+    getAccelerometerAddress(),
+    previousSensors.accelX,
+    previousSensors.accelY,
+    previousSensors.accelZ,
+    previousSensors.accelNorm
+  );
 #endif
 }
 
@@ -59,7 +80,19 @@ void loop() {
   return;
 #endif
 
-  // Impact classification (runs every IC_STEP_SIZE * 50ms = 100ms once buffer is full)
+  if (millis() - lastOledAt > 3000) {
+    oled.showSensorDebug(
+      isAccelerometerAvailable(),
+      getAccelerometerAddress(),
+      sensors.accelX,
+      sensors.accelY,
+      sensors.accelZ,
+      sensors.accelNorm
+    );
+    lastOledAt = millis();
+  }
+
+  // Impact classification runs every IC_STEP_SIZE * 50ms once the buffer is full.
   ImpactResult impactResult;
   if (impactClassifier.update(sensors.accelX, sensors.accelY, sensors.accelZ, impactResult)) {
     if (impactResult.label != lastDisplayedLabel) {
@@ -67,8 +100,17 @@ void loop() {
       oled.showImpact(impactResult.label, impactResult.confidence);
       oled.showState(stateLabel(runtime.state));
     }
-    if (impactResult.label != IMPACT_NONE && runtime.sessionId != "")
-      sendImpactEvent(impactResult);
+    if (impactResult.label != IMPACT_NONE) {
+      Serial.println("[IMPACT] detected, ensuring session");
+      if (runtime.sessionId == "") {
+        sealSession();
+      }
+      if (runtime.sessionId != "") {
+        sendImpactEvent(impactResult);
+      } else {
+        Serial.println("[IMPACT] skipped, no session");
+      }
+    }
   }
 
   if (runtime.sessionId == "" && !sensors.boxOpen && sensors.productPresent) {
@@ -92,26 +134,6 @@ void loop() {
   if (runtime.sessionId != "" && millis() - lastPollAt > 2000) {
     pollCommands();
     lastPollAt = millis();
-  }
-
-  if (millis() - lastLogAt > 1000) {
-    Serial.print("state=");
-    Serial.print(stateLabel(runtime.state));
-    Serial.print(" session=");
-    Serial.print(runtime.sessionId);
-    Serial.print(" light=");
-    Serial.print(sensors.light);
-    Serial.print(" baseline=");
-    Serial.print(getLightBaseline());
-    Serial.print(" open=");
-    Serial.print(sensors.boxOpen);
-    Serial.print(" productPresent=");
-    Serial.print(sensors.productPresent);
-    Serial.print(" accelNorm=");
-    Serial.print(sensors.accelNorm);
-    Serial.print(" removedLock=");
-    Serial.println(runtime.productRemovedLock);
-    lastLogAt = millis();
   }
 
   previousSensors = sensors;
@@ -154,21 +176,32 @@ void sendEvent(const String& eventName, SensorSnapshot sensors) {
 }
 
 void sendImpactEvent(const ImpactResult& impact) {
-  const char* severity = (impact.label == IMPACT_HEAVY) ? "heavy" : "light";
+  const char* severity = "heavy";
+  float confidence = impact.confidence;
+  if (!isfinite(confidence)) {
+    confidence = 1.0f;
+  }
+  if (confidence < 0.0f) {
+    confidence = 0.0f;
+  }
+  if (confidence > 1.0f) {
+    confidence = 1.0f;
+  }
+
   String body = "{";
   body += "\"session_id\":\"" + runtime.sessionId + "\",";
   body += "\"source\":\"arduino\",";
   body += "\"event\":\"IMPACT_DETECTED\",";
   body += "\"timestamp\":" + String(millis()) + ",";
   body += "\"severity\":\"" + String(severity) + "\",";
-  body += "\"confidence\":" + String(impact.confidence, 4);
+  body += "\"confidence\":" + String(confidence, 4);
   body += "}";
 
   String response = httpRequest("POST", "/api/event", body);
   Serial.print("[IMPACT] ");
   Serial.print(severity);
   Serial.print(" conf=");
-  Serial.print(impact.confidence, 2);
+  Serial.print(confidence, 2);
   Serial.print(" response bytes=");
   Serial.println(response.length());
 }

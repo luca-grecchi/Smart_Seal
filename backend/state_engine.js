@@ -5,6 +5,7 @@ export const EVENTS = new Set([
   "IN_TRANSIT",
   "BOX_OPENED",
   "PRODUCT_REMOVED",
+  "IMPACT_DETECTED",
   "TAMPER",
   "STATIC",
   "POST_REMOVAL_INSERTION"
@@ -123,13 +124,24 @@ export function ingestEvent(session, input = {}) {
     return { ok: false, reason: "UNKNOWN_EVENT" };
   }
 
+  if (input.event === "IMPACT_DETECTED" && !isValidImpact(input)) {
+    return { ok: false, reason: "INVALID_IMPACT" };
+  }
+
   const timestamp = input.timestamp ? Number(input.timestamp) : Date.now();
-  pushEvent(session, {
+  const event = {
     source: input.source || "simulator",
     event: input.event,
     timestamp,
     sensor_data: input.sensor_data || {}
-  });
+  };
+
+  if (input.event === "IMPACT_DETECTED") {
+    event.severity = input.severity;
+    event.confidence = Number(input.confidence);
+  }
+
+  pushEvent(session, event);
 
   if (input.event === "IN_TRANSIT") {
     session.state = "IN_TRANSIT";
@@ -153,6 +165,10 @@ export function ingestEvent(session, input = {}) {
   touch(session, timestamp);
   computeVerdict(session);
   return { ok: true };
+}
+
+function isValidImpact(input) {
+  return ["light", "heavy"].includes(input.severity) && Number.isFinite(Number(input.confidence));
 }
 
 export function drainCommands(session) {

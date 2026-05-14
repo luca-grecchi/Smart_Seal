@@ -18,16 +18,29 @@ public:
   float lastPeakJerk    = 0.0f;
 
   bool update(float x, float y, float z, ImpactResult& result) {
+    if (!isfinite(x) || !isfinite(y) || !isfinite(z)) {
+      result = {IMPACT_NONE, 0.0f};
+      return false;
+    }
+
     ring_[head_] = {x, y, z};
     head_ = (head_ + 1) % HC_WINDOW_SIZE;
     if (count_ < HC_WINDOW_SIZE) count_++;
 
     float mag = sqrtf(x * x + y * y + z * z);
+    if (!isfinite(mag)) {
+      result = {IMPACT_NONE, 0.0f};
+      return false;
+    }
+
     if (baselineCount_ < HC_BASELINE_SAMPLES) {
       baselineSum_ += mag;
       baselineCount_++;
       if (baselineCount_ == HC_BASELINE_SAMPLES) {
         baselineMag_ = baselineSum_ / HC_BASELINE_SAMPLES;
+        if (!isfinite(baselineMag_) || baselineMag_ <= 0.0f) {
+          baselineMag_ = 1.0f;
+        }
         Serial.print("[HEURISTIC] baseline=");
         Serial.println(baselineMag_);
       }
@@ -51,6 +64,7 @@ public:
       int idx = (head_ + i) % HC_WINDOW_SIZE;
       const AccelSample& s = ring_[idx];
       float m = sqrtf(s.x * s.x + s.y * s.y + s.z * s.z);
+      if (!isfinite(m)) continue;
       float dyn = fabsf(m - baselineMag_);
       if (dyn > peakDynamic) peakDynamic = dyn;
       if (prevMag >= 0.0f) {
@@ -66,6 +80,8 @@ public:
 
     lastPeakDynamic = peakDynamic;
     lastPeakJerk    = peakJerk;
+    if (!isfinite(lastPeakDynamic)) lastPeakDynamic = 0.0f;
+    if (!isfinite(lastPeakJerk)) lastPeakJerk = 0.0f;
 
     float meanMag = sumMag / HC_WINDOW_SIZE;
     float varMag  = sumMagSq / HC_WINDOW_SIZE - meanMag * meanMag;
@@ -76,6 +92,7 @@ public:
     if (label != IMPACT_NONE) {
       float thresh = (label == IMPACT_HEAVY) ? heavyPeakThreshold : lightPeakThreshold;
       result.confidence = peakDynamic / thresh;
+      if (!isfinite(result.confidence)) result.confidence = 1.0f;
       if (result.confidence > 1.0f) result.confidence = 1.0f;
       cooldownRemaining_ = cooldownSteps;
     } else {

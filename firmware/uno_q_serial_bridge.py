@@ -26,6 +26,7 @@ REQUEST_BEGIN = "===DEVICE_REQUEST_BEGIN==="
 REQUEST_END = "===DEVICE_REQUEST_END==="
 RESPONSE_BEGIN = "===DEVICE_RESPONSE_BEGIN==="
 RESPONSE_END = "===DEVICE_RESPONSE_END==="
+FRAME_READ_TIMEOUT_S = 3.0
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,8 +37,35 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def read_request(ser: serial.Serial) -> dict[str, str] | None:
-    line = ser.readline().decode("utf-8", errors="replace").strip()
+class SerialLineReader:
+    def __init__(self, ser: serial.Serial) -> None:
+        self.ser = ser
+        self.buffer = bytearray()
+
+    def read_line(self, timeout: float | None = None) -> str | None:
+        deadline = None if timeout is None else time.monotonic() + timeout
+
+        while True:
+            newline_at = self.buffer.find(b"\n")
+            if newline_at >= 0:
+                raw = self.buffer[:newline_at]
+                del self.buffer[:newline_at + 1]
+                return raw.decode("utf-8", errors="replace").strip()
+
+            if deadline is not None and time.monotonic() >= deadline:
+                return None
+
+            chunk = self.ser.read(1)
+            if chunk:
+                self.buffer.extend(chunk)
+            elif timeout is None:
+                return None
+
+
+def read_request(reader: SerialLineReader) -> dict[str, str] | None:
+    line = reader.read_line()
+    if line is None:
+        return None
     if line != REQUEST_BEGIN:
         if line:
             print(f"[arduino] {line}")
@@ -45,8 +73,14 @@ def read_request(ser: serial.Serial) -> dict[str, str] | None:
 
     request = {"method": "", "path": "", "body": ""}
     while True:
-        raw = ser.readline().decode("utf-8", errors="replace").strip()
+        raw = reader.read_line(FRAME_READ_TIMEOUT_S)
+        if raw is None:
+            print("[bridge] incomplete request frame")
+            return None
         if raw == REQUEST_END:
+            if not request["method"] or not request["path"]:
+                print(f"[bridge] invalid request frame {request}")
+                return None
             return request
         if raw.startswith("METHOD:"):
             request["method"] = raw.removeprefix("METHOD:")
@@ -85,9 +119,10 @@ def main() -> int:
     args = parse_args()
     with serial.Serial(args.port, args.baud, timeout=1) as ser:
         time.sleep(2)
+        reader = SerialLineReader(ser)
         print(f"[bridge] forwarding {args.port} -> {args.backend}")
         while True:
-            request = read_request(ser)
+            request = read_request(reader)
             if not request:
                 continue
             print(f"[bridge] {request['method']} {request['path']} {request['body']}")
