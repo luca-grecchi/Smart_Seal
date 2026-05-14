@@ -193,6 +193,9 @@ body {
   background: #14b8a6;
   flex-shrink: 0;
 }
+.dot-impact  { background: #f59e0b; }
+.dot-warning { background: #eab308; }
+.dot-danger  { background: #ef4444; }
 
 .tag {
   font-size: 10px;

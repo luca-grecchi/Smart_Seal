@@ -181,8 +181,8 @@ function renderSessionCard(session) {
   const eventsHtml = session.events.length
     ? session.events.map((e) => `
         <div class="card-row">
-          <span class="event-dot"></span>
-          <span class="font-medium text-zinc-200">${escapeHtml(e.event)}</span>
+          <span class="event-dot ${eventDotClass(e.event)}"></span>
+          <span class="font-medium ${eventTextClass(e.event)}">${escapeHtml(e.event)}</span>
           <span class="tag source-${escapeAttr(e.source)}">${escapeHtml(e.source)}</span>
           <span class="log-time ml-auto">${new Date(e.timestamp).toLocaleTimeString()}</span>
         </div>`).join("")
@@ -247,6 +247,22 @@ function appendLog(targetId, label, payload, sourceClass = "source-unknown") {
     `<span class="log-msg">${escapeHtml(JSON.stringify(payload))}</span>`;
   const target = document.getElementById(targetId);
   target.insertBefore(entry, target.firstChild);
+}
+
+function eventDotClass(event) {
+  if (event === "IMPACT_DETECTED")  return "dot-impact";
+  if (event === "BOX_OPENED")       return "dot-warning";
+  if (event === "PRODUCT_REMOVED")  return "dot-danger";
+  if (event === "TAMPER")           return "dot-danger";
+  return "";
+}
+
+function eventTextClass(event) {
+  if (event === "IMPACT_DETECTED") return "text-amber-400";
+  if (event === "BOX_OPENED")      return "text-yellow-400";
+  if (event === "PRODUCT_REMOVED") return "text-red-400";
+  if (event === "TAMPER")          return "text-red-400";
+  return "text-zinc-200";
 }
 
 function escapeHtml(str) {
