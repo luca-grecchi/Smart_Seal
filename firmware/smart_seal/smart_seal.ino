@@ -10,6 +10,8 @@
 #include "oled_display.h"
 #include "hybrid_impact_classifier.h"
 
+const float ACCEL_TRANSIT_THRESHOLD = 1.15f;
+
 SealRuntime runtime;
 SensorSnapshot previousSensors;
 
@@ -148,7 +150,7 @@ void sealSession() {
     int start = keyIndex + 14;
     int end = response.indexOf("\"", start);
     runtime.sessionId = response.substring(start, end);
-    runtime.state = SEALED_STATE;
+    transitionTo(runtime, EVENT_SEALED);
     Serial.print("sealed session=");
     Serial.println(runtime.sessionId);
   } else {
@@ -208,13 +210,7 @@ void sendImpactEvent(const ImpactResult& impact) {
 
 void pollCommands() {
   String response = httpRequest("GET", "/api/command/" + runtime.sessionId, "");
-  if (response.indexOf("COURIER_DELIVERED") >= 0) {
-    runtime.state = DELIVERED_STATE;
-  }
-  if (response.indexOf("CLIENT_AUTHENTICATED") >= 0) {
-    runtime.state = DELIVERED_STATE;
-  }
-  if (response.indexOf("VERDICT_COMPUTED") >= 0) {
-    runtime.state = VERDICT_STATE;
-  }
+  if (response.indexOf("COURIER_DELIVERED") >= 0)    transitionTo(runtime, EVENT_COURIER_DELIVERED);
+  if (response.indexOf("CLIENT_AUTHENTICATED") >= 0) transitionTo(runtime, EVENT_CLIENT_AUTH);
+  if (response.indexOf("VERDICT_COMPUTED") >= 0)     transitionTo(runtime, EVENT_VERDICT);
 }
