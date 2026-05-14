@@ -8,6 +8,7 @@ Base URL locale: `http://localhost:3000`
 - `IN_TRANSIT`
 - `BOX_OPENED`
 - `PRODUCT_REMOVED`
+- `IMPACT_DETECTED`
 - `TAMPER`
 - `STATIC`
 - `POST_REMOVAL_INSERTION`
@@ -60,6 +61,21 @@ Response:
 ```
 
 `source`: `arduino` oppure `simulator`.
+
+Per un impatto rilevato dal firmware:
+
+```json
+{
+  "session_id": "sess_abc123",
+  "source": "arduino",
+  "event": "IMPACT_DETECTED",
+  "timestamp": 1234567890,
+  "severity": "heavy",
+  "confidence": 0.91
+}
+```
+
+`severity`: `light` oppure `heavy`.
 
 ### `GET /api/command/:session_id`
 
@@ -115,4 +131,3 @@ Crea una nuova sessione per lo stesso device e invalida quella precedente.
 - `device.event`
 - `verdict.computed`
 - `error.event`
-

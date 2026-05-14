@@ -7,3 +7,5 @@ backend/node_modules/
 dist/
 build/
 coverage/
+repomix-output.xml
+.gitignore
