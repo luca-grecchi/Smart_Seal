@@ -1,0 +1,20 @@
+{
+  "name": "smart-seal-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "demo": "node ../demo/demo_runner.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.3",
+    "socket.io": "^4.7.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
+

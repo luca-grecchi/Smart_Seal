@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Smart Seal Dashboard</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="bg-zinc-950 text-zinc-100">
+    <main class="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 p-4">
+      <header class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+        <div>
+          <h1 class="text-2xl font-semibold tracking-normal">Smart Seal</h1>
+          <p class="text-sm text-zinc-400">PoC dashboard, OTP e simulatore eventi</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="create-session" class="btn-primary">Nuova sessione</button>
+          <input id="session-id" class="input w-64" placeholder="session_id" />
+          <button id="load-session" class="btn">Carica</button>
+        </div>
+      </header>
+
+      <section class="grid gap-3 md:grid-cols-4">
+        <div class="metric">
+          <span>Stato</span>
+          <strong id="state">-</strong>
+        </div>
+        <div class="metric">
+          <span>Verdict</span>
+          <strong id="verdict">-</strong>
+        </div>
+        <div class="metric">
+          <span>Courier OTP</span>
+          <strong id="courier-otp">-</strong>
+        </div>
+        <div class="metric">
+          <span>Client OTP</span>
+          <strong id="client-otp">-</strong>
+        </div>
+      </section>
+
+      <nav class="flex gap-2 border-b border-zinc-800">
+        <button class="tab active" data-tab="retailer">Retailer</button>
+        <button class="tab" data-tab="courier">Courier</button>
+        <button class="tab" data-tab="client">Client</button>
+        <button class="tab" data-tab="device">Device</button>
+      </nav>
+
+      <section id="retailer" class="panel active">
+        <div class="toolbar">
+          <button class="btn" data-scenario="A">Run Scenario A</button>
+          <button class="btn" data-scenario="B">Run Scenario B</button>
+          <button class="btn" data-scenario="C">Run Scenario C</button>
+          <button class="btn" data-scenario="D">Run Scenario D</button>
+          <button id="reset-session" class="btn-danger">Reset</button>
+        </div>
+        <pre id="session-json" class="log h-96"></pre>
+      </section>
+
+      <section id="courier" class="panel">
+        <div class="form-row">
+          <input id="courier-otp-input" class="input" placeholder="Courier OTP" />
+          <select id="courier-gps" class="input">
+            <option value="client_home">client_home</option>
+            <option value="courier_depot">courier_depot</option>
+            <option value="random_location">random_location</option>
+          </select>
+          <button id="courier-scan" class="btn-primary">Scan corriere</button>
+        </div>
+      </section>
+
+      <section id="client" class="panel">
+        <div class="form-row">
+          <input id="client-otp-input" class="input" placeholder="Client OTP" />
+          <select id="client-gps" class="input">
+            <option value="client_home">client_home</option>
+            <option value="random_location">random_location</option>
+          </select>
+          <button id="client-auth" class="btn-primary">Autentica cliente</button>
+          <button id="client-dispute" class="btn-danger">Dispute EMPTY_BOX</button>
+        </div>
+      </section>
+
+      <section id="device" class="panel">
+        <div class="toolbar">
+          <button class="btn" data-event="SEALED">SEALED</button>
+          <button class="btn" data-event="IN_TRANSIT">IN_TRANSIT</button>
+          <button class="btn" data-event="BOX_OPENED">BOX_OPENED</button>
+          <button class="btn" data-event="PRODUCT_REMOVED">PRODUCT_REMOVED</button>
+          <button class="btn" data-event="TAMPER">TAMPER</button>
+        </div>
+        <div class="mt-3 grid gap-3 md:grid-cols-3">
+          <input id="sensor-light" class="input" type="number" value="850" />
+          <input id="sensor-accel" class="input" type="number" value="12.3" />
+          <select id="sensor-product" class="input">
+            <option value="true">product_present=true</option>
+            <option value="false">product_present=false</option>
+          </select>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="mb-2 text-sm font-medium text-zinc-300">Event log</h2>
+        <pre id="event-log" class="log h-56"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="/retailer.js"></script>
+    <script type="module" src="/courier.js"></script>
+    <script type="module" src="/client.js"></script>
+    <script type="module" src="/device_view.js"></script>
+  </body>
+</html>
+
