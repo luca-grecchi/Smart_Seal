@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import sealRoutes from "./routes/seal.js";
 import eventRoutes from "./routes/event.js";
 import commandRoutes from "./routes/command.js";
+import logRoutes from "./routes/log.js";
 import { createStore } from "./state_engine.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,6 +34,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api", sealRoutes(context));
 app.use("/api", eventRoutes(context));
 app.use("/api", commandRoutes(context));
+app.use("/api", logRoutes(context));
 
 io.on("connection", (socket) => {
   socket.emit("session.update", { message: "connected", timestamp: Date.now() });

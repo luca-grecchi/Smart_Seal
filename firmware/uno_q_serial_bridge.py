@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import queue
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -62,24 +64,44 @@ class SerialLineReader:
                 return None
 
 
-def read_request(reader: SerialLineReader) -> dict[str, str] | None:
+def _log_sender(backend: str, log_queue: queue.Queue) -> None:
+    """Background thread: drain the queue and POST each entry to /api/log."""
+    url = f"{backend.rstrip('/')}/api/log"
+    while True:
+        item = log_queue.get()
+        if item is None:
+            return
+        try:
+            body = json.dumps(item).encode("utf-8")
+            req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+            urllib.request.urlopen(req, timeout=2)
+        except Exception:
+            pass  # log delivery is best-effort
+
+
+def read_request(reader: SerialLineReader, enqueue_log) -> dict[str, str] | None:
     line = reader.read_line()
     if line is None:
         return None
     if line != REQUEST_BEGIN:
         if line:
             print(f"[arduino] {line}")
+            enqueue_log("arduino", line)
         return None
 
     request = {"method": "", "path": "", "body": ""}
     while True:
         raw = reader.read_line(FRAME_READ_TIMEOUT_S)
         if raw is None:
-            print("[bridge] incomplete request frame")
+            msg = "incomplete request frame"
+            print(f"[bridge] {msg}")
+            enqueue_log("bridge", msg)
             return None
         if raw == REQUEST_END:
             if not request["method"] or not request["path"]:
-                print(f"[bridge] invalid request frame {request}")
+                msg = f"invalid request frame {request}"
+                print(f"[bridge] {msg}")
+                enqueue_log("bridge", msg)
                 return None
             return request
         if raw.startswith("METHOD:"):
@@ -117,17 +139,30 @@ def write_response(ser: serial.Serial, body: str) -> None:
 
 def main() -> int:
     args = parse_args()
-    with serial.Serial(args.port, args.baud, timeout=1) as ser:
+
+    log_queue: queue.Queue = queue.Queue()
+    threading.Thread(target=_log_sender, args=(args.backend, log_queue), daemon=True).start()
+
+    def enqueue_log(source: str, message: str) -> None:
+        log_queue.put_nowait({"source": source, "message": message, "timestamp": int(time.time() * 1000)})
+
+    with serial.serial_for_url(args.port, args.baud, timeout=1) as ser:
         time.sleep(2)
         reader = SerialLineReader(ser)
-        print(f"[bridge] forwarding {args.port} -> {args.backend}")
+        msg = f"forwarding {args.port} -> {args.backend}"
+        print(f"[bridge] {msg}")
+        enqueue_log("bridge", msg)
         while True:
-            request = read_request(reader)
+            request = read_request(reader, enqueue_log)
             if not request:
                 continue
-            print(f"[bridge] {request['method']} {request['path']} {request['body']}")
+            msg = f"{request['method']} {request['path']} {request['body']}"
+            print(f"[bridge] {msg}")
+            enqueue_log("bridge", msg)
             response_body = forward_request(args.backend, request)
-            print(f"[bridge] response {response_body}")
+            msg = f"response {response_body}"
+            print(f"[bridge] {msg}")
+            enqueue_log("bridge", msg)
             write_response(ser, response_body)
 
 
