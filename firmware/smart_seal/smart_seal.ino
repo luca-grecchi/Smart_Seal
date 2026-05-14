@@ -1,6 +1,7 @@
 #include "state_machine.h"
 #include "sensors.h"
 #include "network.h"
+#include "secrets.h"
 
 SealRuntime runtime;
 SensorSnapshot previousSensors;
@@ -17,6 +18,10 @@ void setup() {
 
   previousSensors = readSensors();
   Serial.println("SMART SEAL v0.1");
+  Serial.print("light baseline=");
+  Serial.println(getLightBaseline());
+  Serial.print("accelerometer=");
+  Serial.println(isAccelerometerAvailable() ? "ready" : "unavailable");
 }
 
 void loop() {
@@ -47,6 +52,16 @@ void loop() {
     Serial.print(stateLabel(runtime.state));
     Serial.print(" session=");
     Serial.print(runtime.sessionId);
+    Serial.print(" light=");
+    Serial.print(sensors.light);
+    Serial.print(" baseline=");
+    Serial.print(getLightBaseline());
+    Serial.print(" open=");
+    Serial.print(sensors.boxOpen);
+    Serial.print(" productPresent=");
+    Serial.print(sensors.productPresent);
+    Serial.print(" accelNorm=");
+    Serial.print(sensors.accelNorm);
     Serial.print(" removedLock=");
     Serial.println(runtime.productRemovedLock);
     lastLogAt = millis();
@@ -103,4 +118,3 @@ void pollCommands() {
     runtime.state = VERDICT_STATE;
   }
 }
-
