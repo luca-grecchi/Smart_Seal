@@ -1,26 +1,34 @@
 const socket = io();
 
-const state = {
-  session: null
-};
+const state = { session: null };
 
 window.smartSeal = {
-  get session() {
-    return state.session;
-  },
+  get session() { return state.session; },
   setSession,
   request
 };
 
-document.querySelectorAll(".tab").forEach((button) => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
-    document.querySelectorAll(".panel").forEach((panel) => panel.classList.remove("active"));
-    button.classList.add("active");
-    document.getElementById(button.dataset.tab).classList.add("active");
+// ── Connection status ──────────────────────────────────────
+socket.on("connect",    () => setConn(true));
+socket.on("disconnect", () => setConn(false));
+
+function setConn(connected) {
+  const el = document.getElementById("conn-indicator");
+  el.textContent = connected ? "● Connected" : "● Disconnected";
+  el.className   = connected ? "conn-connected" : "conn-disconnected";
+}
+
+// ── Tab switching ──────────────────────────────────────────
+document.querySelectorAll(".tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((t)   => t.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
   });
 });
 
+// ── Session actions ────────────────────────────────────────
 document.getElementById("create-session").addEventListener("click", async () => {
   const session = await request("/api/seal", {
     method: "POST",
@@ -41,19 +49,41 @@ document.getElementById("reset-session").addEventListener("click", async () => {
   setSession(session);
 });
 
-document.querySelectorAll("[data-scenario]").forEach((button) => {
-  button.addEventListener("click", () => runScenario(button.dataset.scenario));
+document.querySelectorAll("[data-scenario]").forEach((btn) => {
+  btn.addEventListener("click", () => runScenario(btn.dataset.scenario));
 });
 
+// ── Log clear buttons ──────────────────────────────────────
+document.getElementById("clear-serial").addEventListener("click", () => {
+  document.getElementById("serial-log").innerHTML = "";
+});
+document.getElementById("clear-event").addEventListener("click", () => {
+  document.getElementById("event-log").innerHTML = "";
+});
+
+// ── Socket events ──────────────────────────────────────────
 socket.on("session.update", (payload) => {
   if (payload?.session_id) setSession(payload);
-  log("socket session.update", payload);
+  appendLog("event-log", "session.update", payload, "source-backend");
 });
-socket.on("device.event", (payload) => log("socket device.event", payload));
-socket.on("command.created", (payload) => log("socket command.created", payload));
-socket.on("verdict.computed", (payload) => log("socket verdict.computed", payload));
-socket.on("error.event", (payload) => log("socket error.event", payload));
+socket.on("device.event",    (p) => appendLog("event-log", "device.event",    p, "source-arduino"));
+socket.on("command.created", (p) => appendLog("event-log", "command.created", p, "source-backend"));
+socket.on("verdict.computed",(p) => appendLog("event-log", "verdict.computed",p, "source-backend"));
+socket.on("error.event",     (p) => appendLog("event-log", "error.event",     p, "source-error"));
 
+socket.on("serial.log", ({ message, source, timestamp }) => {
+  const sourceClass = source === "arduino" ? "source-arduino" : "source-bridge";
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  entry.innerHTML =
+    `<span class="log-time">${new Date(timestamp).toLocaleTimeString()}</span>` +
+    `<span class="${sourceClass}">[${escapeHtml(source)}]</span>` +
+    `<span class="log-msg">${escapeHtml(message)}</span>`;
+  const target = document.getElementById("serial-log");
+  target.insertBefore(entry, target.firstChild);
+});
+
+// ── Scenarios ──────────────────────────────────────────────
 async function runScenario(name) {
   const session = await request("/api/seal", {
     method: "POST",
@@ -109,12 +139,7 @@ async function sendEvent(event, sensorData = {}) {
       source: "simulator",
       event,
       timestamp: Date.now(),
-      sensor_data: {
-        light: 850,
-        accel_norm: 12.3,
-        product_present: true,
-        ...sensorData
-      }
+      sensor_data: { light: 850, accel_norm: 12.3, product_present: true, ...sensorData }
     }
   });
 }
@@ -125,17 +150,80 @@ async function loadSession(sessionId) {
   setSession(session);
 }
 
+// ── Session rendering ──────────────────────────────────────
 function setSession(session) {
   state.session = session;
+
   document.getElementById("state").textContent = session.state || "-";
-  document.getElementById("verdict").textContent = session.verdict?.code || "-";
-  document.getElementById("courier-otp").textContent = session.courier_otp || "-";
-  document.getElementById("client-otp").textContent = session.client_otp || "-";
-  document.getElementById("courier-otp-input").value = session.courier_otp || "";
-  document.getElementById("client-otp-input").value = session.client_otp || "";
-  document.getElementById("session-json").textContent = JSON.stringify(session, null, 2);
+
+  const verdictEl   = document.getElementById("verdict");
+  const verdictCode = session.verdict?.code ?? null;
+  verdictEl.textContent = verdictCode || "-";
+  verdictEl.className   = verdictCode === "VERDICT_A" ? "verdict-clean"
+                        : verdictCode               ? "verdict-fraud"
+                        : "";
+
+  document.getElementById("courier-otp").textContent     = session.courier_otp || "-";
+  document.getElementById("client-otp").textContent      = session.client_otp  || "-";
+  document.getElementById("courier-otp-input").value     = session.courier_otp || "";
+  document.getElementById("client-otp-input").value      = session.client_otp  || "";
+
+  renderSessionCard(session);
 }
 
+function renderSessionCard(session) {
+  const card = document.getElementById("session-card");
+  if (!session?.session_id) {
+    card.innerHTML = '<p class="text-zinc-500 text-sm">No session loaded.</p>';
+    return;
+  }
+
+  const eventsHtml = session.events.length
+    ? session.events.map((e) => `
+        <div class="card-row">
+          <span class="event-dot"></span>
+          <span class="font-medium text-zinc-200">${escapeHtml(e.event)}</span>
+          <span class="tag source-${escapeAttr(e.source)}">${escapeHtml(e.source)}</span>
+          <span class="log-time ml-auto">${new Date(e.timestamp).toLocaleTimeString()}</span>
+        </div>`).join("")
+    : '<p class="text-zinc-600 text-xs py-1">No events yet.</p>';
+
+  const commandsHtml = session.commands.length
+    ? session.commands.map((c) => `
+        <div class="card-row">
+          <span class="text-zinc-500">→</span>
+          <span class="font-medium text-zinc-200">${escapeHtml(c.type)}</span>
+          ${c.verdict ? `<span class="tag source-backend">${escapeHtml(c.verdict)}</span>` : ""}
+          ${c.gps     ? `<span class="tag">${escapeHtml(c.gps)}</span>` : ""}
+        </div>`).join("")
+    : '<p class="text-zinc-600 text-xs py-1">No commands yet.</p>';
+
+  card.innerHTML = `
+    <div class="card-meta">
+      <div class="card-field">
+        <span class="card-label">Session</span>
+        <span class="card-value">${escapeHtml(session.session_id)}</span>
+      </div>
+      <div class="card-field">
+        <span class="card-label">Device</span>
+        <span class="card-value">${escapeHtml(session.device_id || "-")}</span>
+      </div>
+      <div class="card-field">
+        <span class="card-label">Created</span>
+        <span class="card-value" style="font-family:inherit">${new Date(session.createdAt).toLocaleString()}</span>
+      </div>
+    </div>
+    <div class="card-section">
+      <h3 class="card-section-title">Events</h3>
+      ${eventsHtml}
+    </div>
+    <div class="card-section">
+      <h3 class="card-section-title">Commands</h3>
+      ${commandsHtml}
+    </div>`;
+}
+
+// ── Utilities ──────────────────────────────────────────────
 async function request(url, options = {}) {
   const response = await fetch(url, {
     ...options,
@@ -144,15 +232,31 @@ async function request(url, options = {}) {
   });
   const data = await response.json();
   if (!response.ok) {
-    log("http error", data);
+    appendLog("event-log", "http error", data, "source-error");
     throw new Error(data.error || response.statusText);
   }
   return data;
 }
 
-function log(label, payload) {
-  const line = `[${new Date().toLocaleTimeString()}] ${label} ${JSON.stringify(payload)}\n`;
-  const target = document.getElementById("event-log");
-  target.textContent = line + target.textContent;
+function appendLog(targetId, label, payload, sourceClass = "source-unknown") {
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  entry.innerHTML =
+    `<span class="log-time">${new Date().toLocaleTimeString()}</span>` +
+    `<span class="${sourceClass}">${escapeHtml(label)}</span>` +
+    `<span class="log-msg">${escapeHtml(JSON.stringify(payload))}</span>`;
+  const target = document.getElementById(targetId);
+  target.insertBefore(entry, target.firstChild);
 }
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/[^a-z0-9-]/gi, "");
+}
