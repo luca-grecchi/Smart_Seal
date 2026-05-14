@@ -10,6 +10,8 @@
 #include "oled_display.h"
 #include "hybrid_impact_classifier.h"
 
+const float ACCEL_TRANSIT_THRESHOLD = 1.15f;
+
 SealRuntime runtime;
 SensorSnapshot previousSensors;
 
@@ -94,23 +96,16 @@ void loop() {
     lastPollAt = millis();
   }
 
+  // ── Log periodico su Serial ────────────────────────────────
   if (millis() - lastLogAt > 1000) {
-    Serial.print("state=");
-    Serial.print(stateLabel(runtime.state));
-    Serial.print(" session=");
-    Serial.print(runtime.sessionId);
-    Serial.print(" light=");
-    Serial.print(sensors.light);
-    Serial.print(" baseline=");
-    Serial.print(getLightBaseline());
-    Serial.print(" open=");
-    Serial.print(sensors.boxOpen);
-    Serial.print(" productPresent=");
-    Serial.print(sensors.productPresent);
-    Serial.print(" accelNorm=");
-    Serial.print(sensors.accelNorm);
-    Serial.print(" removedLock=");
-    Serial.println(runtime.productRemovedLock);
+    Serial.print("state=");        Serial.print(stateLabel(runtime.state));
+    Serial.print(" session=");     Serial.print(runtime.sessionId);
+    Serial.print(" light=");       Serial.print(sensors.light);
+    Serial.print(" baseline=");    Serial.print(getLightBaseline());
+    Serial.print(" open=");        Serial.print(sensors.boxOpen);
+    Serial.print(" product=");     Serial.print(sensors.productPresent);
+    Serial.print(" accel=");       Serial.print(sensors.accelNorm);
+    Serial.print(" removedLock="); Serial.println(runtime.productRemovedLock);
     lastLogAt = millis();
   }
 
@@ -126,7 +121,7 @@ void sealSession() {
     int start = keyIndex + 14;
     int end = response.indexOf("\"", start);
     runtime.sessionId = response.substring(start, end);
-    runtime.state = SEALED_STATE;
+    transitionTo(runtime, EVENT_SEALED);
     Serial.print("sealed session=");
     Serial.println(runtime.sessionId);
   } else {
@@ -175,13 +170,7 @@ void sendImpactEvent(const ImpactResult& impact) {
 
 void pollCommands() {
   String response = httpRequest("GET", "/api/command/" + runtime.sessionId, "");
-  if (response.indexOf("COURIER_DELIVERED") >= 0) {
-    runtime.state = DELIVERED_STATE;
-  }
-  if (response.indexOf("CLIENT_AUTHENTICATED") >= 0) {
-    runtime.state = DELIVERED_STATE;
-  }
-  if (response.indexOf("VERDICT_COMPUTED") >= 0) {
-    runtime.state = VERDICT_STATE;
-  }
+  if (response.indexOf("COURIER_DELIVERED") >= 0)    transitionTo(runtime, EVENT_COURIER_DELIVERED);
+  if (response.indexOf("CLIENT_AUTHENTICATED") >= 0) transitionTo(runtime, EVENT_CLIENT_AUTH);
+  if (response.indexOf("VERDICT_COMPUTED") >= 0)     transitionTo(runtime, EVENT_VERDICT);
 }
