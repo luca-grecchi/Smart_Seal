@@ -26,6 +26,7 @@ struct SensorSnapshot {
   bool productPresent;
   int light;
   float accelNorm;
+  float accelX, accelY, accelZ;
 };
 
 void setupSensors() {
@@ -61,16 +62,17 @@ bool isAccelerometerAvailable() {
   return accelAvailable;
 }
 
-float readAccelNorm() {
+bool readAccelAxes(float& x, float& y, float& z) {
 #if SMART_SEAL_HAS_ACCEL_LIB
   if (accelAvailable) {
-    const float x = accelerometer.getAccelerationX();
-    const float y = accelerometer.getAccelerationY();
-    const float z = accelerometer.getAccelerationZ();
-    return sqrt(x * x + y * y + z * z);
+    x = accelerometer.getAccelerationX();
+    y = accelerometer.getAccelerationY();
+    z = accelerometer.getAccelerationZ();
+    return true;
   }
 #endif
-  return 0.0;
+  x = y = z = 0.0f;
+  return false;
 }
 
 SensorSnapshot readSensors() {
@@ -78,6 +80,9 @@ SensorSnapshot readSensors() {
   snapshot.light = analogRead(LIGHT_PIN);
   snapshot.boxOpen = isBoxOpenFromLight(snapshot.light);
   snapshot.productPresent = digitalRead(PRODUCT_PIN) == LOW;
-  snapshot.accelNorm = readAccelNorm();
+  readAccelAxes(snapshot.accelX, snapshot.accelY, snapshot.accelZ);
+  snapshot.accelNorm = sqrt(snapshot.accelX * snapshot.accelX +
+                            snapshot.accelY * snapshot.accelY +
+                            snapshot.accelZ * snapshot.accelZ);
   return snapshot;
 }
