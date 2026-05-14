@@ -26,6 +26,6 @@ const char* stateLabel(SealState state) {
     case PRODUCT_REMOVED_STATE: return "PRODUCT_REMOVED";
     case VERDICT_STATE: return "VERDICT";
     default: return "UNKNOWN";
-  }
+  } 
 }
 
