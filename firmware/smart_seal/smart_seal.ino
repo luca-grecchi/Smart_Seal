@@ -1,7 +1,14 @@
+// Uncomment to stream raw accelerometer CSV for training data collection.
+// Flash with this enabled, capture via:
+//   python3 -m serial.tools.miniterm --raw /dev/ttyACM0 115200 > raw.csv
+// #define IMPACT_DATA_COLLECTION 1
+
 #include "state_machine.h"
 #include "sensors.h"
 #include "network.h"
 #include "secrets.h"
+#include "oled_display.h"
+#include "hybrid_impact_classifier.h"
 
 const float ACCEL_TRANSIT_THRESHOLD = 1.15f;
 
@@ -11,12 +18,21 @@ SensorSnapshot previousSensors;
 unsigned long lastPollAt = 0;
 unsigned long lastLogAt  = 0;
 
+OledDisplay             oled;
+HybridImpactClassifier  impactClassifier;
+ImpactClass      lastDisplayedLabel = IMPACT_NONE;
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
   setupSensors();
-  connectWifi();
+
+#ifndef IMPACT_DATA_COLLECTION
+  connectNetwork();
+  oled.begin();
+  impactClassifier.begin();
+#endif
 
   previousSensors = readSensors();
   Serial.println("SMART SEAL v0.1");
@@ -24,40 +40,60 @@ void setup() {
   Serial.println(getLightBaseline());
   Serial.print("accelerometer=");
   Serial.println(isAccelerometerAvailable() ? "ready" : "unavailable");
+
+#ifdef IMPACT_DATA_COLLECTION
+  Serial.println("timestamp_ms,accel_x,accel_y,accel_z");
+#endif
 }
 
 void loop() {
   SensorSnapshot sensors = readSensors();
 
-  // ── Seal: nessuna sessione + scatola chiusa + prodotto dentro ──
-  if (runtime.sessionId == "" && !sensors.boxOpen && sensors.productPresent) {
-    sealSession();
+#ifdef IMPACT_DATA_COLLECTION
+  Serial.print(millis());
+  Serial.print(",");
+  Serial.print(sensors.accelX, 6);
+  Serial.print(",");
+  Serial.print(sensors.accelY, 6);
+  Serial.print(",");
+  Serial.println(sensors.accelZ, 6);
+  delay(20);  // ~50 Hz
+  return;
+#endif
+
+  // Impact classification (runs every IC_STEP_SIZE * 50ms = 100ms once buffer is full)
+  ImpactResult impactResult;
+  if (impactClassifier.update(sensors.accelX, sensors.accelY, sensors.accelZ, impactResult)) {
+    if (impactResult.label != lastDisplayedLabel) {
+      lastDisplayedLabel = impactResult.label;
+      oled.showImpact(impactResult.label, impactResult.confidence);
+      oled.showState(stateLabel(runtime.state));
+    }
+    if (impactResult.label != IMPACT_NONE && runtime.sessionId != "")
+      sendImpactEvent(impactResult);
   }
 
-  if (runtime.sessionId != "") {
+  if (runtime.sessionId == "" && !sensors.boxOpen && sensors.productPresent) {
+    sealSession();
+    oled.showState(stateLabel(runtime.state));
+  }
 
-    // ── Scatola appena aperta ──────────────────────────────────
-    if (sensors.boxOpen && !previousSensors.boxOpen) {
-      transitionTo(runtime, EVENT_BOX_OPENED);
-      sendEvent("BOX_OPENED", sensors);
-    }
+  if (runtime.sessionId != "" && sensors.boxOpen && !previousSensors.boxOpen) {
+    sendEvent("BOX_OPENED", sensors);
+    runtime.state = OPENED_STATE;
+    oled.showState(stateLabel(runtime.state));
+  }
 
-    // ── Prodotto rimosso (logic lock) ──────────────────────────
-    if (!sensors.productPresent && !runtime.productRemovedLock) {
-      transitionTo(runtime, EVENT_PRODUCT_REMOVED);
-      sendEvent("PRODUCT_REMOVED", sensors);
-    }
+  if (runtime.sessionId != "" && !sensors.productPresent && !runtime.productRemovedLock) {
+    runtime.productRemovedLock = true;
+    sendEvent("PRODUCT_REMOVED", sensors);
+    runtime.state = PRODUCT_REMOVED_STATE;
+    oled.showState(stateLabel(runtime.state));
+  }
 
-    // ── Movimento rilevato (accelerometro) ────────────────────
-    if (sensors.accelNorm > ACCEL_TRANSIT_THRESHOLD) {
-      transitionTo(runtime, EVENT_MOVING);
-    }
-
-    // ── Poll comandi dal backend ogni 2 secondi ────────────────
-    if (millis() - lastPollAt > 2000) {
-      pollCommands();
-      lastPollAt = millis();
-    }
+  if (runtime.sessionId != "" && millis() - lastPollAt > 2000) {
+    pollCommands();
+    lastPollAt = millis();
   }
 
   // ── Log periodico su Serial ────────────────────────────────
@@ -108,6 +144,26 @@ void sendEvent(const String& eventName, SensorSnapshot sensors) {
   String response = httpRequest("POST", "/api/event", body);
   Serial.print("event ");
   Serial.print(eventName);
+  Serial.print(" response bytes=");
+  Serial.println(response.length());
+}
+
+void sendImpactEvent(const ImpactResult& impact) {
+  const char* severity = (impact.label == IMPACT_HEAVY) ? "heavy" : "light";
+  String body = "{";
+  body += "\"session_id\":\"" + runtime.sessionId + "\",";
+  body += "\"source\":\"arduino\",";
+  body += "\"event\":\"IMPACT_DETECTED\",";
+  body += "\"timestamp\":" + String(millis()) + ",";
+  body += "\"severity\":\"" + String(severity) + "\",";
+  body += "\"confidence\":" + String(impact.confidence, 4);
+  body += "}";
+
+  String response = httpRequest("POST", "/api/event", body);
+  Serial.print("[IMPACT] ");
+  Serial.print(severity);
+  Serial.print(" conf=");
+  Serial.print(impact.confidence, 2);
   Serial.print(" response bytes=");
   Serial.println(response.length());
 }
