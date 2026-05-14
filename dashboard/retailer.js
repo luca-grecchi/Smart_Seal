@@ -5,22 +5,22 @@ const state = {
 };
 
 window.smartSeal = {
-  get session() {
-    return state.session;
-  },
+  get session() { return state.session; },
   setSession,
   request
 };
 
+// ── Tab navigation ─────────────────────────────────────────────
 document.querySelectorAll(".tab").forEach((button) => {
   button.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
-    document.querySelectorAll(".panel").forEach((panel) => panel.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
     button.classList.add("active");
     document.getElementById(button.dataset.tab).classList.add("active");
   });
 });
 
+// ── Nuova sessione ─────────────────────────────────────────────
 document.getElementById("create-session").addEventListener("click", async () => {
   const session = await request("/api/seal", {
     method: "POST",
@@ -30,10 +30,12 @@ document.getElementById("create-session").addEventListener("click", async () => 
   await loadSession(session.session_id);
 });
 
+// ── Carica sessione esistente ──────────────────────────────────
 document.getElementById("load-session").addEventListener("click", async () => {
   await loadSession(document.getElementById("session-id").value.trim());
 });
 
+// ── Reset ──────────────────────────────────────────────────────
 document.getElementById("reset-session").addEventListener("click", async () => {
   if (!state.session) return;
   const session = await request(`/api/session/${state.session.session_id}/reset`, { method: "POST" });
@@ -41,18 +43,10 @@ document.getElementById("reset-session").addEventListener("click", async () => {
   setSession(session);
 });
 
+// ── Scenario runner ────────────────────────────────────────────
 document.querySelectorAll("[data-scenario]").forEach((button) => {
   button.addEventListener("click", () => runScenario(button.dataset.scenario));
 });
-
-socket.on("session.update", (payload) => {
-  if (payload?.session_id) setSession(payload);
-  log("socket session.update", payload);
-});
-socket.on("device.event", (payload) => log("socket device.event", payload));
-socket.on("command.created", (payload) => log("socket command.created", payload));
-socket.on("verdict.computed", (payload) => log("socket verdict.computed", payload));
-socket.on("error.event", (payload) => log("socket error.event", payload));
 
 async function runScenario(name) {
   const session = await request("/api/seal", {
@@ -62,7 +56,11 @@ async function runScenario(name) {
   document.getElementById("session-id").value = session.session_id;
   await loadSession(session.session_id);
 
+  // Tutti gli scenari partono da SEALED e simulano movimento
+  await sendEvent("IN_TRANSIT", { accel_norm: 1.8 });
+
   if (name === "A" || name === "D") {
+    // Corriere consegna a casa del cliente, cliente si autentica
     await request("/api/courier/scan", {
       method: "POST",
       body: { session_id: session.session_id, courier_otp: session.courier_otp, gps: "client_home" }
@@ -71,9 +69,11 @@ async function runScenario(name) {
       method: "POST",
       body: { session_id: session.session_id, client_otp: session.client_otp, gps: "client_home" }
     });
-    await sendEvent("BOX_OPENED");
-    await sendEvent("PRODUCT_REMOVED", { product_present: false });
+    await sendEvent("BOX_OPENED", { light: 850, accel_norm: 0.2 });
+    await sendEvent("PRODUCT_REMOVED", { light: 850, accel_norm: 0.1, product_present: false });
+
     if (name === "D") {
+      // Cliente dichiara pacco vuoto dopo che il logic lock ha già registrato PRODUCT_REMOVED
       await request("/api/client/dispute", {
         method: "POST",
         body: { session_id: session.session_id, type: "EMPTY_BOX" }
@@ -82,25 +82,28 @@ async function runScenario(name) {
   }
 
   if (name === "B") {
+    // Corriere apre dalla propria sede — GPS sbagliato, nessun client auth
     await request("/api/courier/scan", {
       method: "POST",
       body: { session_id: session.session_id, courier_otp: session.courier_otp, gps: "courier_depot" }
     });
-    await sendEvent("BOX_OPENED");
+    await sendEvent("BOX_OPENED", { light: 850, accel_norm: 0.2 });
   }
 
   if (name === "C") {
+    // Corriere consegna correttamente, ma qualcuno apre dopo un gap temporale (porch piracy)
     await request("/api/courier/scan", {
       method: "POST",
       body: { session_id: session.session_id, courier_otp: session.courier_otp, gps: "client_home" }
     });
-    await new Promise((resolve) => setTimeout(resolve, 5200));
-    await sendEvent("BOX_OPENED");
+    await new Promise((resolve) => setTimeout(resolve, 5200)); // gap simulato 5s
+    await sendEvent("BOX_OPENED", { light: 850, accel_norm: 0.2 });
   }
 
   await loadSession(session.session_id);
 }
 
+// ── Helpers ────────────────────────────────────────────────────
 async function sendEvent(event, sensorData = {}) {
   return request("/api/event", {
     method: "POST",
@@ -110,8 +113,8 @@ async function sendEvent(event, sensorData = {}) {
       event,
       timestamp: Date.now(),
       sensor_data: {
-        light: 850,
-        accel_norm: 12.3,
+        light: 120,          // default: scatola chiusa, luce bassa
+        accel_norm: 0.98,    // default: fermo
         product_present: true,
         ...sensorData
       }
@@ -156,3 +159,9 @@ function log(label, payload) {
   target.textContent = line + target.textContent;
 }
 
+// ── WebSocket ──────────────────────────────────────────────────
+socket.on("session.update", (p) => { if (p?.session_id) setSession(p); log("session.update", p); });
+socket.on("device.event", (p) => log("device.event", p));
+socket.on("command.created", (p) => log("command.created", p));
+socket.on("verdict.computed", (p) => log("verdict.computed", p));
+socket.on("error.event", (p) => log("error.event", p));
