@@ -458,8 +458,8 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 14px;
   border-radius: 12px;
-  background: var(--bg-2);
-  border: 1px solid var(--border-1);
+  background: var(--bg-0);
+  border: 1px solid var(--border-2);
   transition: border-color var(--dur-fast) var(--ease);
 }
 .otp-chip:hover { border-color: var(--border-2); }
