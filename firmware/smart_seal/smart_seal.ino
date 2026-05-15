@@ -118,7 +118,7 @@ void loop() {
     }
   }
 
-  if (runtime.sessionId == "" && !sensors.boxOpen) {
+  if (runtime.sessionId == "" && !sensors.boxOpen && previousSensors.boxOpen) {
     sealSession();
     oled.showState(stateLabel(runtime.state));
   }

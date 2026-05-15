@@ -41,6 +41,7 @@
     socket.on('disconnect', () => handlers.onDisconnect?.());
     socket.on('connect_error', (err) => handlers.onError?.(err?.message || String(err)));
     socket.on('session.update',   (p) => handlers.onSession?.(p));
+    socket.on('session.cleared',  (p) => handlers.onCleared?.(p));
     socket.on('device.event',     (p) => handlers.onDeviceEvent?.(p));
     socket.on('command.created',  (p) => handlers.onCommand?.(p));
     socket.on('verdict.computed', (p) => handlers.onVerdict?.(p));
@@ -52,6 +53,7 @@
       createSeal: () => jsonRequest(url, '/api/seal', { method: 'POST', body: { device_id: 'OPERATOR', timestamp: Date.now() } }),
       getSession: (id) => jsonRequest(url, `/api/session/${id}`),
       resetSession: (id) => jsonRequest(url, `/api/session/${id}/reset`, { method: 'POST' }),
+      clearSession: (id) => jsonRequest(url, `/api/session/${id}/clear`, { method: 'POST' }),
       scanCourier: (id, otp, gps) => jsonRequest(url, '/api/courier/scan', { method: 'POST', body: { session_id: id, courier_otp: otp, gps } }),
       authClient: (id, otp, gps) => jsonRequest(url, '/api/client/authenticate', { method: 'POST', body: { session_id: id, client_otp: otp, gps } }),
       dispute: (id) => jsonRequest(url, '/api/client/dispute', { method: 'POST', body: { session_id: id, type: 'EMPTY_BOX' } }),

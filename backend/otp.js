@@ -4,7 +4,8 @@ export function generateOtp() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-export function createOtpPair(now = Date.now()) {
+export function createOtpPair() {
+  const now = Date.now();
   return {
     courier: { code: generateOtp(), createdAt: now, usedAt: null },
     client: { code: generateOtp(), createdAt: now, usedAt: null }

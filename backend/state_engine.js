@@ -27,7 +27,7 @@ export function createStore() {
 export function createSession(store, input = {}) {
   const now = input.timestamp ? Number(input.timestamp) : Date.now();
   const sessionId = `sess_${Math.random().toString(36).slice(2, 10)}`;
-  const otps = createOtpPair(now);
+  const otps = createOtpPair();
 
   const session = {
     id: sessionId,
@@ -71,6 +71,10 @@ export function resetSession(store, sessionId) {
   const next = createSession(store, { device_id: current.device_id });
   store.sessions.delete(sessionId);
   return next;
+}
+
+export function deleteSession(store, sessionId) {
+  return store.sessions.delete(sessionId);
 }
 
 export function scanCourier(session, input = {}) {
@@ -125,11 +129,12 @@ export function ingestEvent(session, input = {}) {
     return { ok: false, reason: "INVALID_IMPACT" };
   }
 
-  const timestamp = input.timestamp ? Number(input.timestamp) : Date.now();
+  const now = Date.now();
+  const logTimestamp = input.timestamp ? Number(input.timestamp) : now;
   const event = {
     source: input.source || "simulator",
     event: input.event,
-    timestamp,
+    timestamp: logTimestamp,
     sensor_data: input.sensor_data || {}
   };
 
@@ -148,7 +153,7 @@ export function ingestEvent(session, input = {}) {
   }
 
   if (input.event === "BOX_OPENED") {
-    session.openedAt = session.openedAt || timestamp;
+    session.openedAt = session.openedAt || now;
     session.state = session.client_authenticated ? "OPENED_BY_CUSTOMER" : "OPENED_WITHOUT_AUTH";
   }
 
@@ -156,7 +161,7 @@ export function ingestEvent(session, input = {}) {
     session.state = "TAMPER_DETECTED";
   }
 
-  touch(session, timestamp);
+  touch(session, now);
   computeVerdict(session);
   return { ok: true };
 }

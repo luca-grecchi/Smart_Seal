@@ -21,7 +21,7 @@ function ScenarioRunner({ runningScenario, onRun, onReset, onCreate, session }) 
             <Icon name="plus" size={14} />
             New session
           </button>
-          <button className="btn btn-ghost" onClick={onReset} disabled={!session}>
+          <button className="btn btn-ghost" onClick={onReset}>
             <Icon name="reset" size={14} />
             Reset
           </button>

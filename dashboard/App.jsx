@@ -31,7 +31,7 @@ function App() {
   } = window;
 
   const [session, setSession] = React.useState(null);
-  const [events, setEvents] = React.useState(() => [sealedEntry()]);
+  const [events, setEvents] = React.useState([]);
   const [runningScenario, setRunningScenario] = React.useState(null);
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
@@ -50,6 +50,7 @@ function App() {
         onDisconnect: () => setBackend((b) => ({ ...b, connected: false })),
         onError: (msg) => { appendEvent('CONNECT_ERROR', 'error'); setBackend((b) => ({ ...b, connecting: false })); },
         onSession: (s) => commitSession(s),
+        onCleared: () => { setSession(null); setEvents([]); },
         onDeviceEvent: (e) => appendEvent(e.event || 'device.event', e.source || 'arduino', {
           timestamp: e.timestamp,
           severity: e.severity,
@@ -179,15 +180,12 @@ function App() {
   }
 
   function handleReset() {
-    if (!session) return;
     setRunningScenario(null);
-    if (backend.connected && clientRef.current) {
-      clientRef.current.resetSession(session.session_id).then((s) => { setEvents([sealedEntry()]); commitSession(s); });
-      return;
+    if (backend.connected && clientRef.current && session) {
+      clientRef.current.clearSession(session.session_id).catch(() => {});
     }
-    const s = window.SmartSeal.resetSession(session);
-    setEvents([sealedEntry()]);
-    commitSession(s);
+    setSession(null);
+    setEvents([]);
   }
 
   async function handleRun(name) {

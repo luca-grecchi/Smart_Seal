@@ -11,7 +11,7 @@
 
 const int LIGHT_PIN = A3;
 const int LIGHT_BASELINE_SAMPLES = 20;
-const int LIGHT_OPEN_THRESHOLD = 120;
+const int LIGHT_OPEN_THRESHOLD = 100;
 
 int lightBaseline = 0;
 bool accelAvailable = false;
@@ -104,7 +104,7 @@ void setupSensors() {
 }
 
 bool isBoxOpenFromLight(int lightValue) {
-  return lightValue > lightBaseline + LIGHT_OPEN_THRESHOLD;
+  return lightValue > lightBaseline - LIGHT_OPEN_THRESHOLD;
 }
 
 int getLightBaseline() {

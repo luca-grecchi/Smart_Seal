@@ -2,6 +2,7 @@ import express from "express";
 import {
   authenticateClient,
   createSession,
+  deleteSession,
   disputeClient,
   getSession,
   publicSession,
@@ -36,6 +37,13 @@ export default function sealRoutes({ store, io }) {
     const payload = publicSession(session);
     io.emit("session.update", payload);
     res.json(payload);
+  });
+
+  router.post("/session/:id/clear", (req, res) => {
+    const deleted = deleteSession(store, req.params.id);
+    if (!deleted) return res.status(404).json({ error: "SESSION_NOT_FOUND" });
+    io.emit("session.cleared", { session_id: req.params.id });
+    res.json({ ok: true });
   });
 
   router.post("/courier/scan", (req, res) => {
