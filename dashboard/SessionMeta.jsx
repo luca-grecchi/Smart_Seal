@@ -51,7 +51,7 @@ function CourierOtpChip({ session, onSubmit }) {
   React.useEffect(() => { if (session?.courier_otp) setOtp(session.courier_otp); }, [session?.session_id]);
 
   return (
-    <div className="otp-chip" style={{ flexDirection: 'column', gap: 10 }}>
+    <div className="otp-chip" style={{ flexDirection: 'column', gap: 12 }}>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="col" style={{ gap: 4 }}>
           <span className="lbl">Courier OTP</span>
@@ -62,19 +62,21 @@ function CourierOtpChip({ session, onSubmit }) {
           <span className="tag" style={{ color: 'var(--fg-2)' }}>{humanize(session.courier_gps) || '—'}</span>
         </div>
       </div>
-      <div className="row gap-2" style={{ flexWrap: 'wrap' }}>
-        <input
-          className="input mono"
-          value={otp}
-          onChange={(e) => setOtp(e.target.value)}
-          placeholder="Enter OTP"
-          style={{ flex: 1, minWidth: 90, fontSize: 12 }}
-        />
-        <button className="btn btn-primary" style={{ fontSize: 12, padding: '6px 14px' }}
-                onClick={() => onSubmit?.(otp, 'client_home')} disabled={!session}>
-          Scan
-        </button>
-      </div>
+      <input
+        className="input mono"
+        value={otp}
+        onChange={(e) => setOtp(e.target.value)}
+        placeholder="Enter courier OTP"
+        style={{ width: '100%', boxSizing: 'border-box' }}
+      />
+      <button
+        className="btn btn-primary"
+        style={{ width: '100%' }}
+        onClick={() => onSubmit?.(otp, 'client_home')}
+        disabled={!session}
+      >
+        Confirm delivery
+      </button>
     </div>
   );
 }
@@ -84,7 +86,7 @@ function ClientOtpChip({ session, onAuth, onDispute }) {
   React.useEffect(() => { if (session?.client_otp) setOtp(session.client_otp); }, [session?.session_id]);
 
   return (
-    <div className="otp-chip" style={{ flexDirection: 'column', gap: 10 }}>
+    <div className="otp-chip" style={{ flexDirection: 'column', gap: 12 }}>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="col" style={{ gap: 4 }}>
           <span className="lbl">Client OTP</span>
@@ -95,21 +97,29 @@ function ClientOtpChip({ session, onAuth, onDispute }) {
           <span className="tag" style={{ color: 'var(--fg-2)' }}>{humanize(session.client_gps) || '—'}</span>
         </div>
       </div>
-      <div className="row gap-2" style={{ flexWrap: 'wrap' }}>
-        <input
-          className="input mono"
-          value={otp}
-          onChange={(e) => setOtp(e.target.value)}
-          placeholder="Enter OTP"
-          style={{ flex: 1, minWidth: 90, fontSize: 12 }}
-        />
-        <button className="btn btn-primary" style={{ fontSize: 12, padding: '6px 14px' }}
-                onClick={() => onAuth?.(otp, 'client_home')} disabled={!session}>
-          Auth
+      <input
+        className="input mono"
+        value={otp}
+        onChange={(e) => setOtp(e.target.value)}
+        placeholder="Enter client OTP"
+        style={{ width: '100%', boxSizing: 'border-box' }}
+      />
+      <div className="row gap-2">
+        <button
+          className="btn btn-primary"
+          style={{ flex: 1 }}
+          onClick={() => onAuth?.(otp, 'client_home')}
+          disabled={!session}
+        >
+          Authenticate
         </button>
-        <button className="btn btn-danger" style={{ fontSize: 12, padding: '6px 14px' }}
-                onClick={() => onDispute?.()} disabled={!session}>
-          Dispute
+        <button
+          className="btn btn-danger"
+          style={{ flex: 1 }}
+          onClick={() => onDispute?.()}
+          disabled={!session}
+        >
+          Dispute empty box
         </button>
       </div>
     </div>
