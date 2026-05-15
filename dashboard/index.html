@@ -1,140 +1,42 @@
 <!doctype html>
-<html lang="it">
-
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Smart Seal Dashboard</title>
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/styles.css" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smart Seal — Mission Control</title>
+<link rel="stylesheet" href="theme.css" />
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="state.js"></script>
+<script src="realtime.js"></script>
 </head>
+<body>
 
-<body class="bg-zinc-950 text-zinc-100">
-  <main class="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 p-4">
+<!-- Stripe-style gradient mesh blobs, drifting behind everything -->
+<div class="mesh"></div>
 
-    <!-- Header -->
-    <header class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-normal">Smart Seal</h1>
-        <p class="text-sm text-zinc-400">PoC dashboard, OTP and event simulator</p>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button id="create-session" class="btn-primary">New session</button>
-        <input id="session-id" class="input w-64" placeholder="session_id" />
-        <button id="load-session" class="btn">Load</button>
-      </div>
-    </header>
+<div id="root"></div>
 
-    <!-- Metriche -->
-    <section class="grid gap-3 md:grid-cols-4">
-      <div class="metric">
-        <span>State</span>
-        <strong id="state">-</strong>
-      </div>
-      <div class="metric">
-        <span>Verdict</span>
-        <strong id="verdict">-</strong>
-      </div>
-      <div class="metric">
-        <span>Courier OTP</span>
-        <strong id="courier-otp">-</strong>
-      </div>
-      <div class="metric">
-        <span>Client OTP</span>
-        <strong id="client-otp">-</strong>
-      </div>
-    </section>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="StepIcon.jsx"></script>
+<script type="text/babel" src="VerdictBadge.jsx"></script>
+<script type="text/babel" src="MissionControl.jsx"></script>
+<script type="text/babel" src="BrandHeader.jsx"></script>
+<script type="text/babel" src="ScenarioRunner.jsx"></script>
+<script type="text/babel" src="SessionMeta.jsx"></script>
+<script type="text/babel" src="LiveLog.jsx"></script>
+<script type="text/babel" src="ManualControls.jsx"></script>
+<script type="text/babel" src="App.jsx"></script>
 
-    <!-- Tab nav -->
-    <nav class="flex gap-2 border-b border-zinc-800">
-      <button class="tab active" data-tab="retailer">Retailer</button>
-      <button class="tab" data-tab="courier">Courier</button>
-      <button class="tab" data-tab="client">Client</button>
-      <button class="tab" data-tab="device">Device</button>
-    </nav>
-
-    <!-- Retailer -->
-    <section id="retailer" class="panel active">
-      <div class="toolbar">
-        <button class="btn" data-scenario="A">✓ Clean delivery</button>
-        <button class="btn" data-scenario="B">✗ Courier theft</button>
-        <button class="btn" data-scenario="C">✗ Porch piracy</button>
-        <button class="btn" data-scenario="D">✗ Empty box fraud</button>
-        <button id="reset-session" class="btn-danger">Reset</button>
-      </div>
-      <pre id="session-json" class="log h-96 mt-3"></pre>
-    </section>
-
-    <!-- Courier -->
-    <section id="courier" class="panel">
-      <div class="form-row">
-        <input id="courier-otp-input" class="input" placeholder="Courier OTP" />
-        <select id="courier-gps" class="input">
-          <option value="client_home">client_home</option>
-          <option value="courier_depot">courier_depot</option>
-          <option value="random_location">random_location</option>
-        </select>
-        <button id="courier-scan" class="btn-primary">Courier scan</button>
-      </div>
-    </section>
-
-    <!-- Client -->
-    <section id="client" class="panel">
-      <div class="form-row">
-        <input id="client-otp-input" class="input" placeholder="Client OTP" />
-        <select id="client-gps" class="input">
-          <option value="client_home">client_home</option>
-          <option value="random_location">random_location</option>
-        </select>
-        <button id="client-auth" class="btn-primary">Authenticate client</button>
-        <button id="client-dispute" class="btn-danger">Dispute empty box</button>
-      </div>
-    </section>
-
-    <!-- Device simulator -->
-    <section id="device" class="panel">
-      <!-- Bottoni evento — corrispondono a SealEvent nel firmware -->
-      <div class="toolbar">
-        <button class="btn" data-event="SEALED">SEALED</button>
-        <button class="btn" data-event="IN_TRANSIT">IN_TRANSIT</button>
-        <button class="btn" data-event="BOX_OPENED">BOX_OPENED</button>
-        <button class="btn" data-event="PRODUCT_REMOVED">PRODUCT_REMOVED</button>
-        <button class="btn" data-event="TAMPER">TAMPER</button>
-      </div>
-
-      <!-- Valori sensori da inviare con l'evento -->
-      <div class="mt-3 grid gap-3 md:grid-cols-3">
-        <label class="flex flex-col gap-1">
-          <span class="text-xs text-zinc-400">light (analog 0-1023)</span>
-          <input id="sensor-light" class="input" type="number" value="120" />
-        </label>
-        <label class="flex flex-col gap-1">
-          <span class="text-xs text-zinc-400">accel_norm (g) — transit threshold 1.15</span>
-          <input id="sensor-accel" class="input" type="number" step="0.1" value="0.98" />
-        </label>
-        <label class="flex flex-col gap-1">
-          <span class="text-xs text-zinc-400">product_present</span>
-          <select id="sensor-product" class="input">
-            <option value="true">true</option>
-            <option value="false">false</option>
-          </select>
-        </label>
-      </div>
-    </section>
-
-    <!-- Event log -->
-    <section>
-      <h2 class="mb-2 text-sm font-medium text-zinc-300">Event log</h2>
-      <pre id="event-log" class="log h-56"></pre>
-    </section>
-
-  </main>
-
-  <script type="module" src="/retailer.js"></script>
-  <script type="module" src="/courier.js"></script>
-  <script type="module" src="/client.js"></script>
-  <script type="module" src="/device_view.js"></script>
+<script type="text/babel">
+  // Wait one tick so every window.* registration above resolves before mount.
+  requestAnimationFrame(() => {
+    const App = window.App;
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  });
+</script>
 </body>
-
 </html>
