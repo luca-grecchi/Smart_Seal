@@ -262,11 +262,7 @@ function App() {
   return (
     <div className="page">
       <BrandHeader
-        session={session}
         scenario={runningScenario}
-        backend={backend}
-        onConnect={handleConnect}
-        onDisconnect={handleDisconnect}
       />
 
       {/* HERO: mission-control stepper */}
