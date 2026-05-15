@@ -4,10 +4,10 @@ Hackathon PoC that disambiguates four delivery fraud scenarios using a physical 
 
 | Verdict | Scenario |
 |---------|----------|
-| `VERDICT_A` | Clean delivery — both handshakes verified, product removed by recipient |
-| `VERDICT_B` | Courier theft — box opened at wrong GPS without recipient auth |
-| `VERDICT_C` | Porch piracy — correct GPS, ≥ 5 s gap, opened without recipient auth |
-| `VERDICT_D` | Empty-box fraud — recipient disputes after a clean delivery |
+| `CLEAN_DELIVERY` | Both handshakes verified, product removed by recipient |
+| `COURIER_THEFT` | Box opened at wrong GPS without recipient auth |
+| `PORCH_PIRACY` | Correct GPS, ≥ 5 s gap, opened without recipient auth |
+| `EMPTY_BOX_FRAUD` | Recipient disputes after a clean delivery |
 
 ## Quick start
 

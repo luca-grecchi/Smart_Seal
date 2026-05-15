@@ -126,6 +126,12 @@ void loop() {
     oled.showState(stateLabel(runtime.state));
   }
 
+  if (runtime.sessionId != "" && !sensors.boxOpen && previousSensors.boxOpen) {
+    sendEvent("IN_TRANSIT", sensors);
+    transitionTo(runtime, EVENT_MOVING);
+    oled.showState(stateLabel(runtime.state));
+  }
+
   if (runtime.sessionId != "" && millis() - lastPollAt > 2000) {
     pollCommands();
     lastPollAt = millis();

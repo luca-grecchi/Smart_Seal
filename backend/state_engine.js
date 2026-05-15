@@ -139,7 +139,7 @@ export function ingestEvent(session, input = {}) {
 
   pushEvent(session, event);
 
-  if (input.event === "IN_TRANSIT") {
+  if (input.event === "IN_TRANSIT" && !session.deliveredAt) {
     session.state = "IN_TRANSIT";
   }
 
@@ -194,12 +194,11 @@ function computeVerdict(session) {
   if (session.client_authenticated && session.openedAt) {
     setVerdict(session, "VERDICT_A", "CLEAN_DELIVERY");
   } else if (session.openedAt && !session.client_authenticated) {
-    const wrongGps = session.courier_gps && session.courier_gps !== session.expected_client_gps;
     const gap = session.deliveredAt ? session.openedAt - session.deliveredAt : 0;
 
-    if (wrongGps) {
+    if (gap < PORCH_PIRACY_GAP_MS) {
       setVerdict(session, "VERDICT_B", "COURIER_THEFT_SUSPECTED");
-    } else if (gap >= PORCH_PIRACY_GAP_MS) {
+    } else {
       setVerdict(session, "VERDICT_C", "PORCH_PIRACY_SUSPECTED");
     }
   }

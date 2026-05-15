@@ -54,6 +54,7 @@ void transitionTo(SealRuntime& rt, SealEvent ev) {
 
     case OPENED_STATE:
       if (ev == EVENT_VERDICT) rt.state = VERDICT_STATE;
+      if (ev == EVENT_MOVING)  rt.state = IN_TRANSIT_STATE;
       break;
 
     default: break;
