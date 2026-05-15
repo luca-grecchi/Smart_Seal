@@ -83,17 +83,28 @@ function DeviceForm({ session, onEvent }) {
   const [accel, setAccel] = React.useState(12.3);
   const [present, setPresent] = React.useState('true');
   const EVENTS = ['SEALED', 'IN_TRANSIT', 'BOX_OPENED', 'PRODUCT_REMOVED', 'TAMPER'];
+  const sensor_data = { light: Number(light), accel_norm: Number(accel), product_present: present === 'true' };
 
   return (
     <div className="col gap-3">
       <div className="row gap-2" style={{ flexWrap: 'wrap' }}>
         {EVENTS.map((e) => (
           <button key={e} className="btn t-mono" style={{ fontSize: 11, letterSpacing: '0.08em' }}
-                  onClick={() => onEvent(e, { light: Number(light), accel_norm: Number(accel), product_present: present === 'true' })}
+                  onClick={() => onEvent(e, { sensor_data })}
                   disabled={!session}>
             {e}
           </button>
         ))}
+        <button className="btn t-mono" style={{ fontSize: 11, letterSpacing: '0.08em', color: 'var(--amber, #fbbf24)' }}
+                onClick={() => onEvent('IMPACT_DETECTED', { severity: 'light', confidence: 0.85, sensor_data })}
+                disabled={!session}>
+          LIGHT_IMPACT
+        </button>
+        <button className="btn t-mono" style={{ fontSize: 11, letterSpacing: '0.08em', color: 'var(--alert, #f87171)' }}
+                onClick={() => onEvent('IMPACT_DETECTED', { severity: 'heavy', confidence: 0.95, sensor_data })}
+                disabled={!session}>
+          HEAVY_IMPACT
+        </button>
       </div>
       <div className="row gap-3" style={{ flexWrap: 'wrap' }}>
         <input className="input mono" type="number" value={light} onChange={(e) => setLight(e.target.value)} style={{ width: 110 }}/>

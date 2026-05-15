@@ -37,6 +37,15 @@ public:
     render();
   }
 
+  void showOtp(const String& otp) {
+    display_.clearBuffer();
+    display_.setFont(u8g2_font_6x10_tf);
+    display_.drawStr(0, 12, "COURIER OTP");
+    display_.drawStr(0, 32, otp.c_str());
+    display_.drawStr(0, 50, "Scan to deliver");
+    display_.sendBuffer();
+  }
+
   void showSensorDebug(bool accelReady, uint8_t accelAddress, float x, float y, float z, float norm) {
     display_.clearBuffer();
     display_.setFont(u8g2_font_6x10_tf);

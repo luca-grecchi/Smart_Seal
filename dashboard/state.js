@@ -30,6 +30,7 @@
       productRemovedLock: false,
       dispute: null,
       verdict: null,
+      packageDamaged: false,
       courier_otp: otp(),
       client_otp: otp(),
       commands: [],
@@ -53,15 +54,14 @@
 
   function computeVerdict(session) {
     const previous = session.verdict?.code;
-    if (session.dispute?.type === "EMPTY_BOX" && session.productRemovedLock) {
-      setVerdict(session, "VERDICT_D", "EMPTY_BOX_FRAUD");
-    } else if (session.client_authenticated && session.productRemovedLock) {
+    if (session.client_authenticated && session.openedAt) {
       setVerdict(session, "VERDICT_A", "CLEAN_DELIVERY");
     } else if (session.openedAt && !session.client_authenticated) {
-      const wrongGps = session.courier_gps && session.courier_gps !== session.expected_client_gps;
       const gap = session.deliveredAt ? session.openedAt - session.deliveredAt : 0;
-      if (wrongGps) setVerdict(session, "VERDICT_B", "COURIER_THEFT_SUSPECTED");
-      else if (gap >= PORCH_PIRACY_GAP_MS) setVerdict(session, "VERDICT_C", "PORCH_PIRACY_SUSPECTED");
+      if (gap < PORCH_PIRACY_GAP_MS) setVerdict(session, "VERDICT_B", "COURIER_THEFT_SUSPECTED");
+      else setVerdict(session, "VERDICT_C", "PORCH_PIRACY_SUSPECTED");
+    } else if (session.packageDamaged) {
+      setVerdict(session, "VERDICT_E", "PACKAGE_DAMAGED");
     }
     if (session.verdict && session.verdict.code !== previous) {
       queueCommand(session, { type: "VERDICT_COMPUTED", verdict: session.verdict.code });
@@ -98,11 +98,17 @@
     return { ok: true };
   }
 
-  function ingestEvent(session, { source = "simulator", event, sensor_data = {} } = {}) {
+  function ingestEvent(session, { source = "simulator", event, sensor_data = {}, severity, confidence } = {}) {
     const timestamp = nowTs();
-    pushEvent(session, { source, event, timestamp, sensor_data });
+    const entry = { source, event, timestamp, sensor_data };
+    if (event === "IMPACT_DETECTED") {
+      entry.severity = severity;
+      entry.confidence = confidence;
+      if (severity === "heavy" && session.state === "IN_TRANSIT") session.packageDamaged = true;
+    }
+    pushEvent(session, entry);
 
-    if (event === "IN_TRANSIT") session.state = "IN_TRANSIT";
+    if (event === "IN_TRANSIT" && !session.deliveredAt) session.state = "IN_TRANSIT";
     if (event === "BOX_OPENED") {
       session.openedAt = session.openedAt || timestamp;
       session.state = session.client_authenticated ? "OPENED_BY_CUSTOMER" : "OPENED_WITHOUT_AUTH";
@@ -125,25 +131,31 @@
 
   function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
-  async function runScenario(name, { onUpdate } = {}) {
-    const s = createSession(`SIM-${name}`);
+  function emit(s, onUpdate, onEvent) {
     onUpdate?.(s);
+    const last = s.events.at(-1);
+    if (last) onEvent?.(last);
+  }
+
+  async function runScenario(name, { onUpdate, onEvent } = {}) {
+    const s = createSession(`SIM-${name}`);
+    emit(s, onUpdate, onEvent);
 
     if (name === "A" || name === "D") {
       scanCourier(s, { courier_otp: s.courier_otp, gps: "client_home" }); onUpdate?.(s);
       authenticateClient(s, { client_otp: s.client_otp, gps: "client_home" }); onUpdate?.(s);
-      ingestEvent(s, { source: "simulator", event: "BOX_OPENED" }); onUpdate?.(s);
-      ingestEvent(s, { source: "simulator", event: "PRODUCT_REMOVED", sensor_data: { product_present: false } }); onUpdate?.(s);
+      ingestEvent(s, { source: "simulator", event: "BOX_OPENED" }); emit(s, onUpdate, onEvent);
+      ingestEvent(s, { source: "simulator", event: "PRODUCT_REMOVED", sensor_data: { product_present: false } }); emit(s, onUpdate, onEvent);
       if (name === "D") { disputeClient(s, { type: "EMPTY_BOX" }); onUpdate?.(s); }
     }
     if (name === "B") {
-      scanCourier(s, { courier_otp: s.courier_otp, gps: "courier_depot" }); onUpdate?.(s);
-      ingestEvent(s, { source: "simulator", event: "BOX_OPENED" }); onUpdate?.(s);
+      scanCourier(s, { courier_otp: s.courier_otp, gps: "client_home" }); onUpdate?.(s);
+      ingestEvent(s, { source: "simulator", event: "BOX_OPENED" }); emit(s, onUpdate, onEvent);
     }
     if (name === "C") {
       scanCourier(s, { courier_otp: s.courier_otp, gps: "client_home" }); onUpdate?.(s);
       await sleep(5200);
-      ingestEvent(s, { source: "simulator", event: "BOX_OPENED" }); onUpdate?.(s);
+      ingestEvent(s, { source: "simulator", event: "BOX_OPENED" }); emit(s, onUpdate, onEvent);
     }
     return s;
   }

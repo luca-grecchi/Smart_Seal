@@ -42,6 +42,7 @@ export function createSession(store, input = {}) {
     openedAt: null,
     dispute: null,
     verdict: null,
+    packageDamaged: false,
     otps,
     commands: [],
     events: [],
@@ -135,6 +136,9 @@ export function ingestEvent(session, input = {}) {
   if (input.event === "IMPACT_DETECTED") {
     event.severity = input.severity;
     event.confidence = Number(input.confidence);
+    if (input.severity === "heavy" && session.state === "IN_TRANSIT") {
+      session.packageDamaged = true;
+    }
   }
 
   pushEvent(session, event);
@@ -179,6 +183,7 @@ export function publicSession(session, includeOtps = true) {
     client_authenticated: session.client_authenticated,
     dispute: session.dispute,
     verdict: session.verdict,
+    packageDamaged: session.packageDamaged,
     events: session.events,
     commands: session.commands,
     createdAt: session.createdAt,
@@ -201,6 +206,8 @@ function computeVerdict(session) {
     } else {
       setVerdict(session, "VERDICT_C", "PORCH_PIRACY_SUSPECTED");
     }
+  } else if (session.packageDamaged) {
+    setVerdict(session, "VERDICT_E", "PACKAGE_DAMAGED");
   }
 
   if (session.verdict && session.verdict.code !== previousVerdict) {

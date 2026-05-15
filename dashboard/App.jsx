@@ -50,9 +50,14 @@ function App() {
         onDisconnect: () => setBackend((b) => ({ ...b, connected: false })),
         onError: (msg) => { appendEvent('CONNECT_ERROR', 'error'); setBackend((b) => ({ ...b, connecting: false })); },
         onSession: (s) => commitSession(s),
-        onDeviceEvent: (e) => appendEvent(e.event || 'device.event', e.source || 'arduino', { severity: e.severity, confidence: e.confidence }),
+        onDeviceEvent: (e) => appendEvent(e.event || 'device.event', e.source || 'arduino', {
+          timestamp: e.timestamp,
+          severity: e.severity,
+          confidence: e.confidence,
+          sensor_data: e.sensor_data
+        }),
         onCommand: (c) => appendEvent(c.type || 'command', 'backend'),
-        onVerdict: (v) => appendEvent('VERDICT_COMPUTED', 'backend'),
+        onVerdict: (v) => appendEvent('VERDICT_COMPUTED', 'backend', { verdict: v?.label || v?.code }),
         onSerial: () => {},
         onErrorEvt: (e) => appendEvent('ERROR', 'error')
       });
@@ -89,18 +94,77 @@ function App() {
   }
 
   // Add an event to the visible log with a derived flavor class
-  function appendEvent(event, source, extra = {}) {
-    setEvents((prev) => [{
-      id: 'e' + Date.now() + Math.random().toString(36).slice(2, 5),
+  function toLogEntry(event, source, extra = {}) {
+    const timestamp = Number(extra.timestamp) || Date.now();
+    const sensor_data = extra.sensor_data;
+    const sensorKey = sensor_data ? JSON.stringify(sensor_data) : '';
+    return {
+      id: extra.id || `${event}-${source}-${timestamp}-${sensorKey}`,
       event, source,
-      timestamp: Date.now(),
+      timestamp,
       flavor: flavorFor(event, extra.severity),
       ...extra
-    }, ...prev].slice(0, 80));
+    };
+  }
+
+  function appendEvent(event, source, extra = {}) {
+    const entry = toLogEntry(event, source, extra);
+    setEvents((prev) => {
+      if (prev.some((e) => eventKey(e) === eventKey(entry))) return prev;
+      return [{
+        ...entry,
+        id: 'e' + Date.now() + Math.random().toString(36).slice(2, 5)
+      }, ...prev].slice(0, 80);
+    });
+  }
+
+  function mergeSessionEvents(sessionEvents = []) {
+    if (!Array.isArray(sessionEvents) || sessionEvents.length === 0) return;
+
+    setEvents((prev) => {
+      const existingKeys = new Set(prev.map(eventKey));
+      const incoming = sessionEvents
+        .map((e) => toLogEntry(e.event, e.source || 'backend', {
+          timestamp: e.timestamp,
+          severity: e.severity,
+          confidence: e.confidence,
+          sensor_data: e.sensor_data,
+          verdict: e.verdict
+        }))
+        .filter((entry) => {
+          const key = eventKey(entry);
+          if (existingKeys.has(key)) return false;
+          existingKeys.add(key);
+          return true;
+        });
+
+      if (incoming.length === 0) return prev;
+      return [...incoming, ...prev]
+        .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
+        .slice(0, 80);
+    });
+  }
+
+  function eventKey(e) {
+    return [
+      e.event,
+      e.source,
+      e.timestamp,
+      e.severity || '',
+      e.confidence ?? '',
+      e.sensor_data ? JSON.stringify(e.sensor_data) : ''
+    ].join('|');
   }
 
   function commitSession(s) {
     setSession({ ...s });
+    mergeSessionEvents(s?.events);
+  }
+
+  function maybeAppendVerdict(s, prevCode) {
+    if (s.verdict?.code && s.verdict.code !== prevCode) {
+      appendEvent('VERDICT_COMPUTED', 'simulator', { verdict: s.verdict.label || s.verdict.code });
+    }
   }
 
   function handleCreate() {
@@ -128,11 +192,17 @@ function App() {
 
   async function handleRun(name) {
     setRunningScenario(name);
-    setEvents([sealedEntry()]);
+    setEvents([]);
     setSession(null);
+    let prevCode = null;
     try {
       await window.SmartSeal.runScenario(name, {
-        onUpdate: (s) => commitSession(s)
+        onUpdate: (s) => {
+          maybeAppendVerdict(s, prevCode);
+          prevCode = s.verdict?.code ?? prevCode;
+          commitSession(s);
+        },
+        onEvent: (e) => appendEvent(e.event, e.source, { severity: e.severity, confidence: e.confidence })
       });
     } finally {
       setRunningScenario(null);
@@ -145,8 +215,10 @@ function App() {
       clientRef.current.scanCourier(session.session_id, otp, gps).catch(() => appendEvent('SCAN_FAILED', 'error'));
       return;
     }
+    const prevCode = session.verdict?.code;
     const r = window.SmartSeal.scanCourier(session, { courier_otp: otp, gps });
     if (!r.ok) appendEvent('OTP_MISMATCH', 'error');
+    maybeAppendVerdict(session, prevCode);
     commitSession(session);
   }
   function handleClientAuth(otp, gps) {
@@ -155,8 +227,10 @@ function App() {
       clientRef.current.authClient(session.session_id, otp, gps).catch(() => appendEvent('AUTH_FAILED', 'error'));
       return;
     }
+    const prevCode = session.verdict?.code;
     const r = window.SmartSeal.authenticateClient(session, { client_otp: otp, gps });
     if (!r.ok) appendEvent('OTP_MISMATCH', 'error');
+    maybeAppendVerdict(session, prevCode);
     commitSession(session);
   }
   function handleClientDispute() {
@@ -165,17 +239,23 @@ function App() {
       clientRef.current.dispute(session.session_id).catch(() => appendEvent('DISPUTE_FAILED', 'error'));
       return;
     }
+    const prevCode = session.verdict?.code;
     window.SmartSeal.disputeClient(session, { type: 'EMPTY_BOX' });
     appendEvent('DISPUTE_EMPTY_BOX', 'backend');
+    maybeAppendVerdict(session, prevCode);
     commitSession(session);
   }
-  function handleDeviceEvent(event, sensor_data) {
+  function handleDeviceEvent(event, opts = {}) {
     if (!session) return;
+    const { sensor_data = {}, severity, confidence } = opts;
     if (backend.connected && clientRef.current) {
-      clientRef.current.sendEvent(session.session_id, event, sensor_data).catch(() => appendEvent('EVENT_FAILED', 'error'));
+      clientRef.current.sendEvent(session.session_id, event, opts).catch(() => appendEvent('EVENT_FAILED', 'error'));
       return;
     }
-    window.SmartSeal.ingestEvent(session, { source: 'simulator', event, sensor_data });
+    const prevCode = session.verdict?.code;
+    window.SmartSeal.ingestEvent(session, { source: 'simulator', event, sensor_data, severity, confidence });
+    appendEvent(event, 'simulator', { severity, confidence });
+    maybeAppendVerdict(session, prevCode);
     commitSession(session);
   }
 

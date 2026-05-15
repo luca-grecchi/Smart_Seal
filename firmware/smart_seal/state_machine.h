@@ -26,6 +26,7 @@ struct SealRuntime {
   bool courierDelivered    = false;
   bool clientAuthenticated = false;
   String sessionId         = "";
+  String courierOtp        = "";
 };
 
 void transitionTo(SealRuntime& rt, SealEvent ev) {

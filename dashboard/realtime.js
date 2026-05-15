@@ -55,7 +55,7 @@
       scanCourier: (id, otp, gps) => jsonRequest(url, '/api/courier/scan', { method: 'POST', body: { session_id: id, courier_otp: otp, gps } }),
       authClient: (id, otp, gps) => jsonRequest(url, '/api/client/authenticate', { method: 'POST', body: { session_id: id, client_otp: otp, gps } }),
       dispute: (id) => jsonRequest(url, '/api/client/dispute', { method: 'POST', body: { session_id: id, type: 'EMPTY_BOX' } }),
-      sendEvent: (id, event, sensor_data) => jsonRequest(url, '/api/event', { method: 'POST', body: { session_id: id, source: 'simulator', event, timestamp: Date.now(), sensor_data } }),
+      sendEvent: (id, event, opts = {}) => jsonRequest(url, '/api/event', { method: 'POST', body: { session_id: id, source: 'simulator', event, timestamp: Date.now(), ...opts } }),
       disconnect: () => socket.disconnect()
     };
   }

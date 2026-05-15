@@ -22,6 +22,9 @@ OledDisplay             oled;
 HybridImpactClassifier  impactClassifier;
 ImpactClass      lastDisplayedLabel = IMPACT_NONE;
 
+void sendEventOnce(const String& eventName, SensorSnapshot sensors, bool allowSessionRecovery);
+void sendImpactEventOnce(const ImpactResult& impact, bool allowSessionRecovery);
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -152,12 +155,42 @@ void sealSession() {
     transitionTo(runtime, EVENT_SEALED);
     Serial.print("sealed session=");
     Serial.println(runtime.sessionId);
+
+    int otpIdx = response.indexOf("\"courier_otp\":\"");
+    if (otpIdx >= 0) {
+      int os = otpIdx + 15;
+      int oe = response.indexOf("\"", os);
+      runtime.courierOtp = response.substring(os, oe);
+      oled.showOtp(runtime.courierOtp);
+      Serial.print("courier_otp=");
+      Serial.println(runtime.courierOtp);
+    }
   } else {
     Serial.println("seal failed");
   }
 }
 
+bool sessionNotFound(const String& response) {
+  return response.indexOf("SESSION_NOT_FOUND") >= 0;
+}
+
+bool recoverMissingSession(const String& response) {
+  if (!sessionNotFound(response)) {
+    return false;
+  }
+
+  Serial.print("session stale=");
+  Serial.println(runtime.sessionId);
+  runtime.sessionId = "";
+  sealSession();
+  return runtime.sessionId != "";
+}
+
 void sendEvent(const String& eventName, SensorSnapshot sensors) {
+  sendEventOnce(eventName, sensors, true);
+}
+
+void sendEventOnce(const String& eventName, SensorSnapshot sensors, bool allowSessionRecovery) {
   String body = "{";
   body += "\"session_id\":\"" + runtime.sessionId + "\",";
   body += "\"source\":\"arduino\",";
@@ -169,6 +202,11 @@ void sendEvent(const String& eventName, SensorSnapshot sensors) {
   body += "}}";
 
   String response = httpRequest("POST", "/api/event", body);
+  if (allowSessionRecovery && recoverMissingSession(response)) {
+    sendEventOnce(eventName, sensors, false);
+    return;
+  }
+
   Serial.print("event ");
   Serial.print(eventName);
   Serial.print(" response bytes=");
@@ -176,6 +214,10 @@ void sendEvent(const String& eventName, SensorSnapshot sensors) {
 }
 
 void sendImpactEvent(const ImpactResult& impact) {
+  sendImpactEventOnce(impact, true);
+}
+
+void sendImpactEventOnce(const ImpactResult& impact, bool allowSessionRecovery) {
   const char* severity = (impact.label == IMPACT_HEAVY) ? "heavy" : "light";
   float confidence = impact.confidence;
   if (!isfinite(confidence)) {
@@ -198,6 +240,11 @@ void sendImpactEvent(const ImpactResult& impact) {
   body += "}";
 
   String response = httpRequest("POST", "/api/event", body);
+  if (allowSessionRecovery && recoverMissingSession(response)) {
+    sendImpactEventOnce(impact, false);
+    return;
+  }
+
   Serial.print("[IMPACT] ");
   Serial.print(severity);
   Serial.print(" conf=");
@@ -208,6 +255,13 @@ void sendImpactEvent(const ImpactResult& impact) {
 
 void pollCommands() {
   String response = httpRequest("GET", "/api/command/" + runtime.sessionId, "");
+  if (sessionNotFound(response)) {
+    Serial.print("command poll stale session=");
+    Serial.println(runtime.sessionId);
+    runtime.sessionId = "";
+    return;
+  }
+
   if (response.indexOf("COURIER_DELIVERED") >= 0)    transitionTo(runtime, EVENT_COURIER_DELIVERED);
   if (response.indexOf("CLIENT_AUTHENTICATED") >= 0) transitionTo(runtime, EVENT_CLIENT_AUTH);
   if (response.indexOf("VERDICT_COMPUTED") >= 0)     transitionTo(runtime, EVENT_VERDICT);

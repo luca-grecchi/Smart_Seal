@@ -29,6 +29,16 @@ function LiveLog({ events }) {
                   {e.event === 'IMPACT_DETECTED' && e.severity
                     ? (e.severity === 'heavy' ? 'Heavy Impact' : 'Light Impact')
                     : humanize(e.event)}
+                  {e.event === 'IMPACT_DETECTED' && e.confidence != null &&
+                    <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.6, fontFamily: 'var(--font-mono)' }}>
+                      {Math.round(e.confidence * 100)}%
+                    </span>
+                  }
+                  {e.event === 'VERDICT_COMPUTED' && e.verdict &&
+                    <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.7, fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>
+                      {e.verdict}
+                    </span>
+                  }
                 </span>
                 <span className={`src ${e.source}`}>{e.source}</span>
               </div>
