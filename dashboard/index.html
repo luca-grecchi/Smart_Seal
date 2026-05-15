@@ -1,139 +1,42 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Smart Seal Dashboard</title>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body class="bg-zinc-950 text-zinc-100">
-    <main class="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 p-4">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smart Seal — Mission Control</title>
+<link rel="stylesheet" href="theme.css" />
 
-      <header class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-normal">Smart Seal</h1>
-          <p class="text-sm text-zinc-400">PoC Dashboard · OTP &amp; Event Simulator</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <span id="conn-indicator" class="conn-disconnected">● Connecting</span>
-          <button id="create-session" class="btn-primary">New Session</button>
-          <input id="session-id" class="input w-56" placeholder="session_id" />
-          <button id="load-session" class="btn">Load</button>
-        </div>
-      </header>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-      <section class="grid gap-3 md:grid-cols-4">
-        <div class="metric">
-          <span>State</span>
-          <strong id="state">-</strong>
-        </div>
-        <div class="metric">
-          <span>Verdict</span>
-          <strong id="verdict">-</strong>
-        </div>
-        <div class="metric">
-          <span>Courier OTP</span>
-          <strong id="courier-otp" class="font-mono tracking-widest">-</strong>
-        </div>
-        <div class="metric">
-          <span>Client OTP</span>
-          <strong id="client-otp" class="font-mono tracking-widest">-</strong>
-        </div>
-      </section>
+<script src="state.js"></script>
+<script src="realtime.js"></script>
+</head>
+<body>
 
-      <div class="grid gap-4 lg:grid-cols-[1fr_380px]">
+<!-- Stripe-style gradient mesh blobs, drifting behind everything -->
+<div class="mesh"></div>
 
-        <!-- Left column: tabs + panels -->
-        <div class="flex flex-col gap-3">
-          <nav class="flex gap-2 border-b border-zinc-800">
-            <button class="tab active" data-tab="retailer">Retailer</button>
-            <button class="tab" data-tab="courier">Courier</button>
-            <button class="tab" data-tab="client">Client</button>
-            <button class="tab" data-tab="device">Device</button>
-          </nav>
+<div id="root"></div>
 
-          <section id="retailer" class="panel active">
-            <div class="toolbar mb-3">
-              <button class="btn" data-scenario="A">Scenario A</button>
-              <button class="btn" data-scenario="B">Scenario B</button>
-              <button class="btn" data-scenario="C">Scenario C</button>
-              <button class="btn" data-scenario="D">Scenario D</button>
-              <button id="reset-session" class="btn-danger">Reset</button>
-            </div>
-            <div id="session-card" class="session-card">
-              <p class="text-zinc-500 text-sm">No session loaded.</p>
-            </div>
-          </section>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="StepIcon.jsx"></script>
+<script type="text/babel" src="VerdictBadge.jsx"></script>
+<script type="text/babel" src="MissionControl.jsx"></script>
+<script type="text/babel" src="BrandHeader.jsx"></script>
+<script type="text/babel" src="ScenarioRunner.jsx"></script>
+<script type="text/babel" src="SessionMeta.jsx"></script>
+<script type="text/babel" src="LiveLog.jsx"></script>
+<script type="text/babel" src="ManualControls.jsx"></script>
+<script type="text/babel" src="App.jsx"></script>
 
-          <section id="courier" class="panel">
-            <div class="form-row">
-              <input id="courier-otp-input" class="input" placeholder="Courier OTP" />
-              <select id="courier-gps" class="input">
-                <option value="client_home">client_home</option>
-                <option value="courier_depot">courier_depot</option>
-                <option value="random_location">random_location</option>
-              </select>
-              <button id="courier-scan" class="btn-primary">Scan Courier</button>
-            </div>
-          </section>
-
-          <section id="client" class="panel">
-            <div class="form-row">
-              <input id="client-otp-input" class="input" placeholder="Client OTP" />
-              <select id="client-gps" class="input">
-                <option value="client_home">client_home</option>
-                <option value="random_location">random_location</option>
-              </select>
-              <button id="client-auth" class="btn-primary">Authenticate Client</button>
-              <button id="client-dispute" class="btn-danger">Dispute EMPTY_BOX</button>
-            </div>
-          </section>
-
-          <section id="device" class="panel">
-            <div class="toolbar mb-3">
-              <button class="btn" data-event="SEALED">SEALED</button>
-              <button class="btn" data-event="IN_TRANSIT">IN_TRANSIT</button>
-              <button class="btn" data-event="BOX_OPENED">BOX_OPENED</button>
-              <button class="btn" data-event="PRODUCT_REMOVED">PRODUCT_REMOVED</button>
-              <button class="btn" data-event="TAMPER">TAMPER</button>
-            </div>
-            <div class="grid gap-3 md:grid-cols-3">
-              <input id="sensor-light" class="input" type="number" value="850" placeholder="light" />
-              <input id="sensor-accel" class="input" type="number" value="12.3" placeholder="accel_norm" />
-              <select id="sensor-product" class="input">
-                <option value="true">product_present=true</option>
-                <option value="false">product_present=false</option>
-              </select>
-            </div>
-          </section>
-        </div>
-
-        <!-- Right column: logs always visible -->
-        <div class="flex flex-col gap-4">
-          <section>
-            <div class="log-header">
-              <h2 class="log-title">Serial log</h2>
-              <button id="clear-serial" class="btn-clear">Clear</button>
-            </div>
-            <div id="serial-log" class="log h-72"></div>
-          </section>
-          <section>
-            <div class="log-header">
-              <h2 class="log-title">Event log</h2>
-              <button id="clear-event" class="btn-clear">Clear</button>
-            </div>
-            <div id="event-log" class="log h-64"></div>
-          </section>
-        </div>
-
-      </div>
-    </main>
-
-    <script type="module" src="/retailer.js"></script>
-    <script type="module" src="/courier.js"></script>
-    <script type="module" src="/client.js"></script>
-    <script type="module" src="/device_view.js"></script>
-  </body>
+<script type="text/babel">
+  // Wait one tick so every window.* registration above resolves before mount.
+  requestAnimationFrame(() => {
+    const App = window.App;
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  });
+</script>
+</body>
 </html>
