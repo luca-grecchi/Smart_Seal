@@ -111,6 +111,7 @@ function App() {
   function appendEvent(event, source, extra = {}) {
     const entry = toLogEntry(event, source, extra);
     setEvents((prev) => {
+      if (prev.some((e) => e.event === 'VERDICT_COMPUTED')) return prev;
       if (prev.some((e) => eventKey(e) === eventKey(entry))) return prev;
       return [{
         ...entry,
