@@ -48,7 +48,6 @@ function SessionMeta({ session, onCourierScan, onClientAuth, onClientDispute }) 
 
 function CourierOtpChip({ session, onSubmit }) {
   const [otp, setOtp] = React.useState('');
-  const [gps, setGps] = React.useState('client_home');
   React.useEffect(() => { if (session?.courier_otp) setOtp(session.courier_otp); }, [session?.session_id]);
 
   return (
@@ -71,13 +70,8 @@ function CourierOtpChip({ session, onSubmit }) {
           placeholder="Enter OTP"
           style={{ flex: 1, minWidth: 90, fontSize: 12 }}
         />
-        <select className="select" value={gps} onChange={(e) => setGps(e.target.value)} style={{ fontSize: 12 }}>
-          <option value="client_home">client_home</option>
-          <option value="courier_depot">courier_depot</option>
-          <option value="random_location">random_location</option>
-        </select>
         <button className="btn btn-primary" style={{ fontSize: 12, padding: '6px 14px' }}
-                onClick={() => onSubmit?.(otp, gps)} disabled={!session}>
+                onClick={() => onSubmit?.(otp, 'client_home')} disabled={!session}>
           Scan
         </button>
       </div>
@@ -87,7 +81,6 @@ function CourierOtpChip({ session, onSubmit }) {
 
 function ClientOtpChip({ session, onAuth, onDispute }) {
   const [otp, setOtp] = React.useState('');
-  const [gps, setGps] = React.useState('client_home');
   React.useEffect(() => { if (session?.client_otp) setOtp(session.client_otp); }, [session?.session_id]);
 
   return (
@@ -110,12 +103,8 @@ function ClientOtpChip({ session, onAuth, onDispute }) {
           placeholder="Enter OTP"
           style={{ flex: 1, minWidth: 90, fontSize: 12 }}
         />
-        <select className="select" value={gps} onChange={(e) => setGps(e.target.value)} style={{ fontSize: 12 }}>
-          <option value="client_home">client_home</option>
-          <option value="random_location">random_location</option>
-        </select>
         <button className="btn btn-primary" style={{ fontSize: 12, padding: '6px 14px' }}
-                onClick={() => onAuth?.(otp, gps)} disabled={!session}>
+                onClick={() => onAuth?.(otp, 'client_home')} disabled={!session}>
           Auth
         </button>
         <button className="btn btn-danger" style={{ fontSize: 12, padding: '6px 14px' }}
