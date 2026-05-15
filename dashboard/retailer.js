@@ -92,7 +92,7 @@ async function runScenario(name) {
   document.getElementById("session-id").value = session.session_id;
   await loadSession(session.session_id);
 
-  if (name === "A" || name === "D") {
+  if (name === "A") {
     await request("/api/courier/scan", {
       method: "POST",
       body: { session_id: session.session_id, courier_otp: session.courier_otp, gps: "client_home" }
@@ -102,13 +102,6 @@ async function runScenario(name) {
       body: { session_id: session.session_id, client_otp: session.client_otp, gps: "client_home" }
     });
     await sendEvent("BOX_OPENED");
-    await sendEvent("PRODUCT_REMOVED", { product_present: false });
-    if (name === "D") {
-      await request("/api/client/dispute", {
-        method: "POST",
-        body: { session_id: session.session_id, type: "EMPTY_BOX" }
-      });
-    }
   }
 
   if (name === "B") {
@@ -181,8 +174,8 @@ function renderSessionCard(session) {
   const eventsHtml = session.events.length
     ? session.events.map((e) => `
         <div class="card-row">
-          <span class="event-dot ${eventDotClass(e.event)}"></span>
-          <span class="font-medium ${eventTextClass(e.event)}">${escapeHtml(e.event)}</span>
+          <span class="event-dot ${eventDotClass(e)}"></span>
+          <span class="font-medium ${eventTextClass(e)}">${escapeHtml(eventLabel(e))}</span>
           <span class="tag source-${escapeAttr(e.source)}">${escapeHtml(e.source)}</span>
           <span class="log-time ml-auto">${new Date(e.timestamp).toLocaleTimeString()}</span>
         </div>`).join("")
@@ -249,19 +242,25 @@ function appendLog(targetId, label, payload, sourceClass = "source-unknown") {
   target.insertBefore(entry, target.firstChild);
 }
 
-function eventDotClass(event) {
-  if (event === "IMPACT_DETECTED")  return "dot-impact";
-  if (event === "BOX_OPENED")       return "dot-warning";
-  if (event === "PRODUCT_REMOVED")  return "dot-danger";
-  if (event === "TAMPER")           return "dot-danger";
+function eventLabel(e) {
+  if (e.event === "IMPACT_DETECTED") {
+    if (e.severity === "heavy") return "HEAVY_IMPACT";
+    if (e.severity === "light") return "LIGHT_IMPACT";
+  }
+  return e.event;
+}
+
+function eventDotClass(e) {
+  if (e.event === "IMPACT_DETECTED") return e.severity === "heavy" ? "dot-danger" : "dot-impact";
+  if (e.event === "BOX_OPENED")      return "dot-warning";
+  if (e.event === "TAMPER")          return "dot-danger";
   return "";
 }
 
-function eventTextClass(event) {
-  if (event === "IMPACT_DETECTED") return "text-amber-400";
-  if (event === "BOX_OPENED")      return "text-yellow-400";
-  if (event === "PRODUCT_REMOVED") return "text-red-400";
-  if (event === "TAMPER")          return "text-red-400";
+function eventTextClass(e) {
+  if (e.event === "IMPACT_DETECTED") return e.severity === "heavy" ? "text-red-400" : "text-amber-400";
+  if (e.event === "BOX_OPENED")      return "text-yellow-400";
+  if (e.event === "TAMPER")          return "text-red-400";
   return "text-zinc-200";
 }
 

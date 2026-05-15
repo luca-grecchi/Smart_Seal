@@ -1,13 +1,12 @@
 #pragma once
 
 enum SealState {
-  WAITING_SEAL,           // Nessuna sessione — aspetta prodotto + scatola chiusa
-  SEALED_STATE,           // Sessione creata dal backend, sigillo attivo
-  IN_TRANSIT_STATE,       // Movimento rilevato (accelerometro)
-  DELIVERED_STATE,        // Backend ha confermato COURIER_DELIVERED
-  OPENED_STATE,           // Scatola aperta (spike luce)
-  PRODUCT_REMOVED_STATE,  // Prodotto rimosso — logic lock ON (irreversibile)
-  VERDICT_STATE           // Backend ha calcolato il verdict finale
+  WAITING_SEAL,       // Nessuna sessione — aspetta scatola chiusa
+  SEALED_STATE,       // Sessione creata dal backend, sigillo attivo
+  IN_TRANSIT_STATE,   // Movimento rilevato (accelerometro)
+  DELIVERED_STATE,    // Backend ha confermato COURIER_DELIVERED
+  OPENED_STATE,       // Scatola aperta (spike luce)
+  VERDICT_STATE       // Backend ha calcolato il verdict finale
 };
 
 
@@ -15,7 +14,6 @@ enum SealEvent {
   EVENT_SEALED,
   EVENT_MOVING,
   EVENT_BOX_OPENED,
-  EVENT_PRODUCT_REMOVED,
   EVENT_COURIER_DELIVERED,
   EVENT_CLIENT_AUTH,
   EVENT_VERDICT,
@@ -25,7 +23,6 @@ enum SealEvent {
 
 struct SealRuntime {
   SealState state          = WAITING_SEAL;
-  bool productRemovedLock  = false;
   bool courierDelivered    = false;
   bool clientAuthenticated = false;
   String sessionId         = "";
@@ -56,13 +53,6 @@ void transitionTo(SealRuntime& rt, SealEvent ev) {
       break;
 
     case OPENED_STATE:
-      if (ev == EVENT_PRODUCT_REMOVED) {
-        rt.productRemovedLock = true;
-        rt.state = PRODUCT_REMOVED_STATE;
-      }
-      break;
-
-    case PRODUCT_REMOVED_STATE:
       if (ev == EVENT_VERDICT) rt.state = VERDICT_STATE;
       break;
 
@@ -73,13 +63,12 @@ void transitionTo(SealRuntime& rt, SealEvent ev) {
 
 const char* stateLabel(SealState state) {
   switch (state) {
-    case WAITING_SEAL:          return "WAITING_SEAL";
-    case SEALED_STATE:          return "SEALED";
-    case IN_TRANSIT_STATE:      return "IN_TRANSIT";
-    case DELIVERED_STATE:       return "DELIVERED";
-    case OPENED_STATE:          return "OPENED";
-    case PRODUCT_REMOVED_STATE: return "PRODUCT_REMOVED";
-    case VERDICT_STATE:         return "VERDICT";
+    case WAITING_SEAL:      return "WAITING_SEAL";
+    case SEALED_STATE:      return "SEALED";
+    case IN_TRANSIT_STATE:  return "IN_TRANSIT";
+    case DELIVERED_STATE:   return "DELIVERED";
+    case OPENED_STATE:      return "OPENED";
+    case VERDICT_STATE:     return "VERDICT";
     default:                    return "UNKNOWN";
   }
 }

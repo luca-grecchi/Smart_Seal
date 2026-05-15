@@ -9,7 +9,6 @@
 #define LIS3DH_CTRL_REG4 0x23
 #define LIS3DH_OUT_X_L 0x28
 
-const int PRODUCT_PIN = 3;
 const int LIGHT_PIN = A3;
 const int LIGHT_BASELINE_SAMPLES = 20;
 const int LIGHT_OPEN_THRESHOLD = 120;
@@ -86,15 +85,12 @@ bool setupAccelerometer() {
 
 struct SensorSnapshot {
   bool boxOpen;
-  bool productPresent;
   int light;
   float accelNorm;
   float accelX, accelY, accelZ;
 };
 
 void setupSensors() {
-  pinMode(PRODUCT_PIN, INPUT_PULLUP);
-
   long totalLight = 0;
   for (int i = 0; i < LIGHT_BASELINE_SAMPLES; i++) {
     totalLight += analogRead(LIGHT_PIN);
@@ -162,7 +158,6 @@ SensorSnapshot readSensors() {
   SensorSnapshot snapshot;
   snapshot.light = analogRead(LIGHT_PIN);
   snapshot.boxOpen = isBoxOpenFromLight(snapshot.light);
-  snapshot.productPresent = digitalRead(PRODUCT_PIN) == LOW;
   readAccelAxes(snapshot.accelX, snapshot.accelY, snapshot.accelZ);
   snapshot.accelNorm = sqrt(snapshot.accelX * snapshot.accelX +
                             snapshot.accelY * snapshot.accelY +

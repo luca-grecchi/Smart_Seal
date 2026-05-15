@@ -8,17 +8,10 @@ async function main() {
     body: { device_id: `DEMO-${scenario}`, timestamp: Date.now() }
   });
 
-  if (scenario === "A" || scenario === "D") {
+  if (scenario === "A") {
     await courier(created, "client_home");
     await client(created);
     await event(created, "BOX_OPENED");
-    await event(created, "PRODUCT_REMOVED", { product_present: false });
-    if (scenario === "D") {
-      await request("/api/client/dispute", {
-        method: "POST",
-        body: { session_id: created.session_id, type: "EMPTY_BOX" }
-      });
-    }
   } else if (scenario === "B") {
     await courier(created, "courier_depot");
     await event(created, "BOX_OPENED");
@@ -26,6 +19,8 @@ async function main() {
     await courier(created, "client_home");
     await sleep(5200);
     await event(created, "BOX_OPENED");
+  } else if (scenario === "D") {
+    throw new Error("Scenario D removed: no product sensor available");
   } else {
     throw new Error(`Unknown scenario: ${scenario}`);
   }
@@ -67,7 +62,6 @@ function event(session, name, sensorData = {}) {
       sensor_data: {
         light: 850,
         accel_norm: 12.3,
-        product_present: true,
         ...sensorData
       }
     }

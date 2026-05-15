@@ -4,11 +4,9 @@ export const EVENTS = new Set([
   "SEALED",
   "IN_TRANSIT",
   "BOX_OPENED",
-  "PRODUCT_REMOVED",
   "IMPACT_DETECTED",
   "TAMPER",
-  "STATIC",
-  "POST_REMOVAL_INSERTION"
+  "STATIC"
 ]);
 
 export const COMMANDS = new Set([
@@ -42,8 +40,6 @@ export function createSession(store, input = {}) {
     client_authenticated: false,
     deliveredAt: null,
     openedAt: null,
-    productRemovedAt: null,
-    productRemovedLock: false,
     dispute: null,
     verdict: null,
     otps,
@@ -152,12 +148,6 @@ export function ingestEvent(session, input = {}) {
     session.state = session.client_authenticated ? "OPENED_BY_CUSTOMER" : "OPENED_WITHOUT_AUTH";
   }
 
-  if (input.event === "PRODUCT_REMOVED") {
-    session.productRemovedAt = session.productRemovedAt || timestamp;
-    session.productRemovedLock = true;
-    session.state = session.client_authenticated ? "REMOVED_BY_CUSTOMER" : "PRODUCT_REMOVED_WITHOUT_AUTH";
-  }
-
   if (input.event === "TAMPER") {
     session.state = "TAMPER_DETECTED";
   }
@@ -187,7 +177,6 @@ export function publicSession(session, includeOtps = true) {
     client_gps: session.client_gps,
     courier_authenticated: session.courier_authenticated,
     client_authenticated: session.client_authenticated,
-    productRemovedLock: session.productRemovedLock,
     dispute: session.dispute,
     verdict: session.verdict,
     events: session.events,
@@ -202,9 +191,7 @@ export function publicSession(session, includeOtps = true) {
 function computeVerdict(session) {
   const previousVerdict = session.verdict?.code;
 
-  if (session.dispute?.type === "EMPTY_BOX" && session.productRemovedLock) {
-    setVerdict(session, "VERDICT_D", "EMPTY_BOX_FRAUD");
-  } else if (session.client_authenticated && session.productRemovedLock) {
+  if (session.client_authenticated && session.openedAt) {
     setVerdict(session, "VERDICT_A", "CLEAN_DELIVERY");
   } else if (session.openedAt && !session.client_authenticated) {
     const wrongGps = session.courier_gps && session.courier_gps !== session.expected_client_gps;
