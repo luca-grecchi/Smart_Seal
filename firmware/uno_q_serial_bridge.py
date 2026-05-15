@@ -156,13 +156,19 @@ def main() -> int:
             request = read_request(reader, enqueue_log)
             if not request:
                 continue
+            is_poll = (
+                request["method"].upper() == "GET"
+                and request["path"].startswith("/api/command")
+            )
             msg = f"{request['method']} {request['path']} {request['body']}"
-            print(f"[bridge] {msg}")
-            enqueue_log("bridge", msg)
+            if not is_poll:
+                print(f"[bridge] {msg}")
+                enqueue_log("bridge", msg)
             response_body = forward_request(args.backend, request)
             msg = f"response {response_body}"
-            print(f"[bridge] {msg}")
-            enqueue_log("bridge", msg)
+            if not is_poll:
+                print(f"[bridge] {msg}")
+                enqueue_log("bridge", msg)
             write_response(ser, response_body)
 
 
