@@ -121,7 +121,7 @@ function ClientOtpChip({ session, onAuth, onDispute }) {
           onClick={() => onDispute?.()}
           disabled={!session}
         >
-          Dispute empty box
+          Dispute stolen box
         </button>
       </div>
     </div>
