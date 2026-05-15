@@ -168,6 +168,7 @@ function App() {
   }
 
   function handleCreate() {
+    console.debug('[SmartSeal] New session clicked', { connected: backend.connected });
     setRunningScenario(null);
     if (backend.connected && clientRef.current) {
       clientRef.current.createSeal().then((s) => commitSession(s)).catch(() => appendEvent('CREATE_FAILED', 'error'));
@@ -179,6 +180,7 @@ function App() {
   }
 
   function handleReset() {
+    console.debug('[SmartSeal] Reset clicked', { session_id: session?.session_id, connected: backend.connected });
     if (!session) return;
     setRunningScenario(null);
     if (backend.connected && clientRef.current) {
@@ -263,6 +265,9 @@ function App() {
     <div className="page">
       <BrandHeader
         scenario={runningScenario}
+        session={session}
+        onCreate={handleCreate}
+        onReset={handleReset}
       />
 
       {/* HERO: mission-control stepper */}
@@ -279,9 +284,6 @@ function App() {
         <ScenarioRunner
           runningScenario={runningScenario}
           onRun={handleRun}
-          onReset={handleReset}
-          onCreate={handleCreate}
-          session={session}
         />
         <ManualControls
           session={session}

@@ -1,4 +1,4 @@
-/* Scenario runner — four big scenario cards + new/reset session controls */
+/* Scenario runner — four big scenario cards */
 
 const SCENARIOS = [
   { id: 'A', title: 'Clean delivery',   desc: 'Both handshakes verified, box opened, product removed.', accent: '#4ade80' },
@@ -7,24 +7,13 @@ const SCENARIOS = [
   { id: 'D', title: 'Empty-box fraud',  desc: 'Clean flow, then client disputes EMPTY_BOX.',            accent: '#c084fc' }
 ];
 
-function ScenarioRunner({ runningScenario, onRun, onReset, onCreate, session }) {
-  const Icon = window.StepIcon;
+function ScenarioRunner({ runningScenario, onRun }) {
   return (
     <div className="card">
       <div className="row mb-4" style={{ alignItems: 'center' }}>
         <div>
           <div className="eyebrow">Scenario runner</div>
           <div className="h-card mt-2">Disambiguate any of four outcomes</div>
-        </div>
-        <div className="right row gap-2">
-          <button className="btn" onClick={onCreate}>
-            <Icon name="plus" size={14} />
-            New session
-          </button>
-          <button className="btn btn-ghost" onClick={onReset} disabled={!session}>
-            <Icon name="reset" size={14} />
-            Reset
-          </button>
         </div>
       </div>
 

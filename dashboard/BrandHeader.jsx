@@ -1,6 +1,8 @@
-/* Brand header: wordmark + scenario badge */
+/* Brand header: wordmark + scenario badge + session actions */
 
-function BrandHeader({ scenario }) {
+function BrandHeader({ scenario, session, onCreate, onReset }) {
+  const Icon = window.StepIcon;
+
   return (
     <header className="row" style={{ alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
       {/* Logo */}
@@ -41,6 +43,18 @@ function BrandHeader({ scenario }) {
             SCENARIO {scenario}
           </div>
         )}
+
+        <div className="row gap-2" style={{ alignItems: 'center' }}>
+          <button className="btn" onClick={onCreate}>
+            <Icon name="plus" size={14} />
+            New session
+          </button>
+          <span style={{ width: 1, height: 24, background: 'var(--border-1)' }}></span>
+          <button className="btn btn-ghost" onClick={onReset} disabled={!session}>
+            <Icon name="reset" size={14} />
+            Reset
+          </button>
+        </div>
       </div>
     </header>
   );
