@@ -275,7 +275,12 @@ function App() {
 
       {/* PRIMARY: Session + Live event log (focus for real-data demo) */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 'var(--gap-grid)', marginTop: 24 }}>
-        <SessionMeta session={session} />
+        <SessionMeta
+          session={session}
+          onCourierScan={handleCourierScan}
+          onClientAuth={handleClientAuth}
+          onClientDispute={handleClientDispute}
+        />
         <LiveLog events={events} />
       </div>
 
