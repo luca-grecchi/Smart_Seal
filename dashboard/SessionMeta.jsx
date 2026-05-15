@@ -71,7 +71,8 @@ function CourierOtpChip({ session, onSubmit }) {
       />
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <button
-          className="btn btn-primary"
+          className="btn"
+          style={{ color: 'var(--accent)', borderColor: 'var(--border-2)', background: 'var(--bg-3)', boxShadow: 'none' }}
           onClick={() => onSubmit?.(otp, 'client_home')}
           disabled={!session}
         >
@@ -107,16 +108,16 @@ function ClientOtpChip({ session, onAuth, onDispute }) {
       />
       <div className="row gap-2">
         <button
-          className="btn btn-primary"
-          style={{ flex: 1 }}
+          className="btn"
+          style={{ flex: 1, color: 'var(--accent)', borderColor: 'var(--border-2)', background: 'var(--bg-3)', boxShadow: 'none' }}
           onClick={() => onAuth?.(otp, 'client_home')}
           disabled={!session}
         >
           Authenticate
         </button>
         <button
-          className="btn btn-danger"
-          style={{ flex: 1 }}
+          className="btn"
+          style={{ flex: 1, color: 'var(--alert)', borderColor: 'var(--border-2)', background: 'var(--bg-3)', boxShadow: 'none' }}
           onClick={() => onDispute?.()}
           disabled={!session}
         >
