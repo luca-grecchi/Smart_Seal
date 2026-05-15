@@ -41,20 +41,17 @@ The sketch has no WiFi — it prints HTTP frames to `Serial`; the Linux side of 
 
 ```bash
 python3 -m pip install pyserial
-python3 firmware/uno_q_serial_bridge.py --port /dev/ttyACM0 --backend http://localhost:3000
+python3 firmware/uno_q_serial_bridge.py --port <port> --backend http://localhost:3000
 ```
 
-Replace `/dev/ttyACM0` with the actual serial port. If the backend runs on a separate machine, replace `localhost` with its IP.
+**Find your port:**
+
+- **Linux:** `ls /dev/ttyACM*` → typically `/dev/ttyACM0`
+- **macOS:** `ls /dev/tty.usb*` → typically `/dev/tty.usbmodem...`
+
+If the backend runs on a separate machine, replace `localhost` with its IP.
 
 Connect the dashboard to the live backend by entering the backend URL in the header and clicking **Connect backend**.
-
-## Fake Arduino (simulation without hardware)
-
-```bash
-python3 fake_arduino.py --backend http://localhost:3000
-```
-
-Simulates the full Arduino event loop — seals a session, fires `IN_TRANSIT`, `BOX_OPENED`, and `PRODUCT_REMOVED` events on a timer.
 
 ## Impact classifier
 
@@ -114,10 +111,3 @@ firmware/   Arduino sketch + header modules + Python serial bridge + model train
 
 The Arduino sketch prints raw HTTP request frames; the bridge forwards them and writes the response back. The dashboard connects via Socket.IO and receives live session updates.
 
-## Team workflow
-
-- **P1** — `firmware/`
-- **P2** — `backend/`
-- **P3** — `dashboard/`, `demo/`, `docs/test_checklist.md`
-
-The API contract lives in `docs/api_contract.md` — do not rename endpoints, events, or payload fields without aligning the team.

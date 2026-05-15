@@ -131,20 +131,6 @@ void loop() {
     lastPollAt = millis();
   }
 
-  // ── Log periodico su Serial ────────────────────────────────
-  if (millis() - lastLogAt > 1000) {
-    Serial.print("state=");        Serial.print(stateLabel(runtime.state));
-    Serial.print(" session=");     Serial.print(runtime.sessionId);
-    Serial.print(" light=");       Serial.print(sensors.light);
-    Serial.print(" baseline=");    Serial.print(getLightBaseline());
-    Serial.print(" open=");        Serial.print(sensors.boxOpen);
-    Serial.print(" product=");     Serial.print(sensors.productPresent);
-    Serial.print(" accel=");       Serial.print(sensors.accelNorm);
-    Serial.print(" removedLock="); Serial.println(runtime.productRemovedLock);
-    lastLogAt = millis();
-  }
-
-
   previousSensors = sensors;
   delay(50);
 }
