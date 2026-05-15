@@ -72,7 +72,7 @@ function CourierOtpChip({ session, onSubmit }) {
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <button
           className="btn"
-          style={{ color: 'var(--accent)', borderColor: 'var(--border-2)', background: 'var(--bg-3)', boxShadow: 'none' }}
+          style={{ color: 'var(--accent)', borderColor: 'rgba(20,184,166,0.3)', background: 'rgba(20,184,166,0.08)', boxShadow: 'none' }}
           onClick={() => onSubmit?.(otp, 'client_home')}
           disabled={!session}
         >
@@ -109,7 +109,7 @@ function ClientOtpChip({ session, onAuth, onDispute }) {
       <div className="row gap-2">
         <button
           className="btn"
-          style={{ flex: 1, color: 'var(--accent)', borderColor: 'var(--border-2)', background: 'var(--bg-3)', boxShadow: 'none' }}
+          style={{ flex: 1, color: 'var(--accent)', borderColor: 'rgba(20,184,166,0.3)', background: 'rgba(20,184,166,0.08)', boxShadow: 'none' }}
           onClick={() => onAuth?.(otp, 'client_home')}
           disabled={!session}
         >
@@ -117,7 +117,7 @@ function ClientOtpChip({ session, onAuth, onDispute }) {
         </button>
         <button
           className="btn"
-          style={{ flex: 1, color: 'var(--alert)', borderColor: 'var(--border-2)', background: 'var(--bg-3)', boxShadow: 'none' }}
+          style={{ flex: 1, color: 'var(--alert)', borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', boxShadow: 'none' }}
           onClick={() => onDispute?.()}
           disabled={!session}
         >
