@@ -69,14 +69,15 @@ function CourierOtpChip({ session, onSubmit }) {
         placeholder="Enter courier OTP"
         style={{ width: '100%', boxSizing: 'border-box' }}
       />
-      <button
-        className="btn btn-primary"
-        style={{ width: '100%' }}
-        onClick={() => onSubmit?.(otp, 'client_home')}
-        disabled={!session}
-      >
-        Confirm delivery
-      </button>
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <button
+          className="btn btn-primary"
+          onClick={() => onSubmit?.(otp, 'client_home')}
+          disabled={!session}
+        >
+          Confirm delivery
+        </button>
+      </div>
     </div>
   );
 }
