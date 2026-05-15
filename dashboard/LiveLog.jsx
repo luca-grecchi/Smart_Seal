@@ -1,6 +1,8 @@
 /* Live event log — entries slide in from the top, fresh ones get a dot pulse */
 
 function LiveLog({ events }) {
+  const humanize = (s) => String(s ?? '').toLowerCase().split(/[_\s]+/).filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   return (
     <div className="card">
       <div className="row mb-4" style={{ alignItems: 'center' }}>
@@ -23,7 +25,7 @@ function LiveLog({ events }) {
               >
                 <span className="t">{new Date(e.timestamp).toLocaleTimeString()}</span>
                 <span className="d"></span>
-                <span className="n">{e.event}</span>
+                <span className="n">{humanize(e.event)}</span>
                 <span className={`src ${e.source}`}>{e.source}</span>
               </div>
             ))

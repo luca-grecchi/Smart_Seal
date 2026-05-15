@@ -51,43 +51,63 @@ function computeSteps(session) {
     {
       key: 'seal',
       label: 'Sealed',
-      sub: s ? `device ${s.device_id}` : 'awaiting device',
+      sub: s ? 'Smart Seal armed with two one-time codes'
+             : 'Waiting for a Smart Seal to arm',
       icon: 'lock',
       done: !!s
     },
     {
       key: 'courier',
       label: 'Courier handshake',
-      sub: s?.courier_gps || 'gps: pending',
+      sub: s?.courier_authenticated
+        ? (s.courier_gps === 'client_home'
+            ? 'Courier scanned at the right address'
+            : 'Courier scanned at the wrong address')
+        : 'Awaiting courier scan at delivery',
       icon: 'truck',
       done: !!s?.courier_authenticated
     },
     {
       key: 'client',
       label: 'Client handshake',
-      sub: s?.client_authenticated ? (s?.client_gps || 'verified') : (s?.openedAt ? 'no auth' : 'pending'),
+      sub: s?.client_authenticated
+        ? 'Recipient confirmed delivery in person'
+        : (s?.openedAt
+            ? 'Opened with no recipient handshake'
+            : 'Awaiting recipient confirmation'),
       icon: 'user',
-      done: !!s?.client_authenticated || !!s?.openedAt   // opened-without-auth still advances the track
+      done: !!s?.client_authenticated || !!s?.openedAt
     },
     {
       key: 'opened',
       label: 'Box opened',
-      sub: s?.openedAt ? new Date(s.openedAt).toLocaleTimeString() : 'closed',
+      sub: s?.openedAt
+        ? 'Lid sensor detected the opening'
+        : 'Lid sealed, no entry yet',
       icon: 'unlock',
       done: !!s?.openedAt
     },
     {
       key: 'verdict',
       label: 'Verdict',
-      sub: s?.verdict?.code || 'pending',
+      sub: verdictBlurb(s),
       icon: 'shield',
       done: !!s?.verdict
     }
   ];
 }
 
+function verdictBlurb(s) {
+  const code = s?.verdict?.code;
+  if (code === 'VERDICT_A') return 'Delivery cleared, no fraud';
+  if (code === 'VERDICT_B') return 'Courier theft suspected';
+  if (code === 'VERDICT_C') return 'Porch piracy suspected';
+  if (code === 'VERDICT_D') return 'Empty-box fraud filed';
+  return 'Outcome computed from the evidence';
+}
+
 function labelForState(session) {
-  if (!session) return 'Waiting for device';
+  if (!session) return 'Waiting for a Smart Seal';
   if (session.verdict?.code === 'VERDICT_A') return 'Delivery clean';
   if (session.verdict?.code === 'VERDICT_B') return 'Courier theft suspected';
   if (session.verdict?.code === 'VERDICT_C') return 'Porch piracy suspected';
