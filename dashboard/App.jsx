@@ -31,7 +31,7 @@ function App() {
   } = window;
 
   const [session, setSession] = React.useState(null);
-  const [events, setEvents] = React.useState([]);
+  const [events, setEvents] = React.useState(() => [sealedEntry()]);
   const [runningScenario, setRunningScenario] = React.useState(null);
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
@@ -40,6 +40,8 @@ function App() {
   const [backend, setBackend] = React.useState({ connected: false, connecting: false, url: 'http://localhost:3000' });
   const clientRef = React.useRef(null);
 
+  React.useEffect(() => { handleConnect(backend.url); }, []);
+
   async function handleConnect(url) {
     setBackend({ connected: false, connecting: true, url });
     try {
@@ -47,11 +49,11 @@ function App() {
         onConnect: () => setBackend((b) => ({ ...b, connected: true, connecting: false })),
         onDisconnect: () => setBackend((b) => ({ ...b, connected: false })),
         onError: (msg) => { appendEvent('CONNECT_ERROR', 'error'); setBackend((b) => ({ ...b, connecting: false })); },
-        onSession: (s) => { lastSyncedCount.current = 0; commitSession(s); },
-        onDeviceEvent: (e) => appendEvent(e.event || 'device.event', e.source || 'arduino'),
+        onSession: (s) => commitSession(s),
+        onDeviceEvent: (e) => appendEvent(e.event || 'device.event', e.source || 'arduino', { severity: e.severity, confidence: e.confidence }),
         onCommand: (c) => appendEvent(c.type || 'command', 'backend'),
         onVerdict: (v) => appendEvent('VERDICT_COMPUTED', 'backend'),
-        onSerial: (s) => appendEvent(s.message?.slice(0, 60) || 'serial', s.source || 'bridge'),
+        onSerial: () => {},
         onErrorEvt: (e) => appendEvent('ERROR', 'error')
       });
       clientRef.current = client;
@@ -82,25 +84,23 @@ function App() {
     document.querySelector('.page').classList.toggle('no-texture', !t.showTexture);
   }, [t.accent, t.motion, t.density, t.meshOpacity, t.showMesh, t.showTexture]);
 
+  function sealedEntry() {
+    return { id: 'sealed-' + Date.now(), event: 'SEALED', source: 'arduino', timestamp: Date.now(), flavor: 'ok' };
+  }
+
   // Add an event to the visible log with a derived flavor class
-  function appendEvent(event, source) {
+  function appendEvent(event, source, extra = {}) {
     setEvents((prev) => [{
       id: 'e' + Date.now() + Math.random().toString(36).slice(2, 5),
       event, source,
       timestamp: Date.now(),
-      flavor: flavorFor(event)
+      flavor: flavorFor(event, extra.severity),
+      ...extra
     }, ...prev].slice(0, 80));
   }
 
-  // Mirror session.events into the visible log on every commit
-  const lastSyncedCount = React.useRef(0);
   function commitSession(s) {
     setSession({ ...s });
-    if (s) {
-      const newEvents = s.events.slice(lastSyncedCount.current);
-      for (const e of newEvents) appendEvent(e.event, e.source);
-      lastSyncedCount.current = s.events.length;
-    }
   }
 
   function handleCreate() {
@@ -110,8 +110,7 @@ function App() {
       return;
     }
     const s = window.SmartSeal.createSession('SIM-001');
-    lastSyncedCount.current = 0;
-    setEvents([]);
+    setEvents([sealedEntry()]);
     commitSession(s);
   }
 
@@ -119,19 +118,17 @@ function App() {
     if (!session) return;
     setRunningScenario(null);
     if (backend.connected && clientRef.current) {
-      clientRef.current.resetSession(session.session_id).then((s) => { lastSyncedCount.current = 0; setEvents([]); commitSession(s); });
+      clientRef.current.resetSession(session.session_id).then((s) => { setEvents([sealedEntry()]); commitSession(s); });
       return;
     }
     const s = window.SmartSeal.resetSession(session);
-    lastSyncedCount.current = 0;
-    setEvents([]);
+    setEvents([sealedEntry()]);
     commitSession(s);
   }
 
   async function handleRun(name) {
     setRunningScenario(name);
-    lastSyncedCount.current = 0;
-    setEvents([]);
+    setEvents([sealedEntry()]);
     setSession(null);
     try {
       await window.SmartSeal.runScenario(name, {
@@ -256,10 +253,10 @@ function App() {
 }
 
 // utility: classify event for log row styling
-function flavorFor(event) {
+function flavorFor(event, severity) {
   if (event === 'BOX_OPENED') return 'warn';
   if (event === 'PRODUCT_REMOVED' || event === 'TAMPER' || event === 'OTP_MISMATCH') return 'danger';
-  if (event === 'IMPACT_DETECTED') return 'impact';
+  if (event === 'IMPACT_DETECTED') return severity === 'heavy' ? 'danger' : 'impact';
   if (event === 'VERDICT_COMPUTED' || event === 'SEALED') return 'ok';
   return '';
 }

@@ -25,7 +25,11 @@ function LiveLog({ events }) {
               >
                 <span className="t">{new Date(e.timestamp).toLocaleTimeString()}</span>
                 <span className="d"></span>
-                <span className="n">{humanize(e.event)}</span>
+                <span className="n">
+                  {e.event === 'IMPACT_DETECTED' && e.severity
+                    ? (e.severity === 'heavy' ? 'Heavy Impact' : 'Light Impact')
+                    : humanize(e.event)}
+                </span>
                 <span className={`src ${e.source}`}>{e.source}</span>
               </div>
             ))
