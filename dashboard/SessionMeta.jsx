@@ -33,7 +33,7 @@ function SessionMeta({ session }) {
               </div>
               <div className="col" style={{ alignItems: 'flex-end', gap: 4 }}>
                 <span className="lbl">GPS</span>
-                <span className="tag" style={{ color: 'var(--fg-2)' }}>{session.courier_gps || '—'}</span>
+                <span className="tag" style={{ color: 'var(--fg-2)' }}>{humanize(session.courier_gps) || '—'}</span>
               </div>
             </div>
 
@@ -44,18 +44,18 @@ function SessionMeta({ session }) {
               </div>
               <div className="col" style={{ alignItems: 'flex-end', gap: 4 }}>
                 <span className="lbl">GPS</span>
-                <span className="tag" style={{ color: 'var(--fg-2)' }}>{session.client_gps || '—'}</span>
+                <span className="tag" style={{ color: 'var(--fg-2)' }}>{humanize(session.client_gps) || '—'}</span>
               </div>
             </div>
 
             <div className="row" style={{ justifyContent: 'space-between', fontSize: 11, color: 'var(--fg-4)', marginTop: 4 }}>
               <span style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>State</span>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-1)' }}>{session.state}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-1)' }}>{prettyState(session)}</span>
             </div>
             <div className="row" style={{ justifyContent: 'space-between', fontSize: 11, color: 'var(--fg-4)' }}>
               <span style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Lock</span>
               <span style={{ fontFamily: 'var(--font-mono)', color: session.productRemovedLock ? 'var(--alert)' : 'var(--fg-2)' }}>
-                {session.productRemovedLock ? 'IRREVERSIBLE · PRODUCT_REMOVED' : 'open'}
+                {session.productRemovedLock ? 'Irreversible · product removed' : 'Open'}
               </span>
             </div>
           </div>
@@ -68,6 +68,24 @@ function SessionMeta({ session }) {
 function formatOtp(s) {
   if (!s) return '— — —';
   return `${s.slice(0, 3)} ${s.slice(3)}`;
+}
+
+function humanize(s) {
+  if (s == null) return '';
+  return String(s)
+    .toLowerCase()
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function prettyState(session) {
+  if (!session) return '';
+  if (session.verdict?.label && session.state?.startsWith('VERDICT_')) {
+    return humanize(session.verdict.label);
+  }
+  return humanize(session.state);
 }
 
 window.SessionMeta = SessionMeta;

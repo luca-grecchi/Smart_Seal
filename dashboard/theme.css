@@ -181,9 +181,11 @@ body {
     0 6px 24px -10px var(--accent-soft);
 }
 .btn-primary:hover {
-  filter: brightness(1.05);
+  background: linear-gradient(180deg, #4ade9a 0%, var(--accent) 100%);
+  color: #04231f;
+  border-color: color-mix(in oklab, var(--accent) 70%, black);
   box-shadow:
-    0 1px 0 0 rgba(255,255,255,0.5) inset,
+    0 1px 0 0 rgba(255,255,255,0.4) inset,
     0 10px 30px -8px var(--accent-soft),
     0 0 30px -10px var(--accent-glow);
 }
@@ -193,6 +195,14 @@ body {
   color: #fff;
   border-color: #9b1a37;
   box-shadow: 0 1px 0 0 rgba(255,255,255,0.3) inset, 0 6px 24px -10px #e11d4844;
+}
+.btn-danger:hover {
+  background: linear-gradient(180deg, #ff7d99 0%, #f02053 100%);
+  color: #fff;
+  border-color: #9b1a37;
+  box-shadow:
+    0 1px 0 0 rgba(255,255,255,0.4) inset,
+    0 10px 30px -8px #e11d4866;
 }
 .btn-ghost {
   background: transparent; border-color: transparent;
