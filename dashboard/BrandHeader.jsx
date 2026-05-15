@@ -1,9 +1,7 @@
-/* Brand header: wordmark + live status + scenario badge + backend connect */
+/* Brand header: wordmark + scenario badge + session actions */
 
-function BrandHeader({ session, scenario, backend, onConnect, onDisconnect }) {
-  const [url, setUrl] = React.useState(backend?.url || 'http://localhost:3000');
-  const connected = !!backend?.connected;
-  const connecting = !!backend?.connecting;
+function BrandHeader({ scenario, session, onCreate, onReset }) {
+  const Icon = window.StepIcon;
 
   return (
     <header className="row" style={{ alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
@@ -36,7 +34,6 @@ function BrandHeader({ session, scenario, backend, onConnect, onDisconnect }) {
         </div>
       </div>
 
-      {/* Backend connect */}
       <div className="right row gap-3" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
         {scenario && (
           <div className="tag" style={{
@@ -48,35 +45,19 @@ function BrandHeader({ session, scenario, backend, onConnect, onDisconnect }) {
         )}
 
         <div className="row gap-2" style={{ alignItems: 'center' }}>
-          <input
-            className="input mono"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="http://localhost:3000"
-            disabled={connected || connecting}
-            style={{ width: 220, fontSize: 12 }}
-          />
-          {!connected ? (
-            <button className="btn btn-primary" onClick={() => onConnect(url)} disabled={connecting}>
-              {connecting ? 'Connecting…' : 'Connect backend'}
-            </button>
-          ) : (
-            <button className="btn btn-danger" onClick={onDisconnect}>
-              Disconnect
-            </button>
-          )}
+          <button className="btn" onClick={onCreate}>
+            <Icon name="plus" size={14} />
+            New session
+          </button>
+          <span style={{ width: 1, height: 24, background: 'var(--border-1)' }}></span>
+          <button className="btn btn-ghost" onClick={onReset} disabled={!session}>
+            <Icon name="reset" size={14} />
+            Reset
+          </button>
         </div>
-
-        <span className={connected ? 'live-dot' : 'live-dot'}>
-          <span className="pulse" style={{ background: connected ? 'var(--clean)' : 'var(--fg-4)' }}></span>
-          {connected ? (session ? 'Live · session active' : 'Live · backend ready')
-                     : connecting ? 'Connecting…'
-                     : 'Offline'}
-        </span>
       </div>
     </header>
   );
 }
 
 window.BrandHeader = BrandHeader;
-

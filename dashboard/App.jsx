@@ -169,6 +169,7 @@ function App() {
   }
 
   function handleCreate() {
+    console.debug('[SmartSeal] New session clicked', { connected: backend.connected });
     setRunningScenario(null);
     if (backend.connected && clientRef.current) {
       clientRef.current.createSeal().then((s) => commitSession(s)).catch(() => appendEvent('CREATE_FAILED', 'error'));
@@ -260,11 +261,10 @@ function App() {
   return (
     <div className="page">
       <BrandHeader
-        session={session}
         scenario={runningScenario}
-        backend={backend}
-        onConnect={handleConnect}
-        onDisconnect={handleDisconnect}
+        session={session}
+        onCreate={handleCreate}
+        onReset={handleReset}
       />
 
       {/* HERO: mission-control stepper */}
@@ -272,7 +272,12 @@ function App() {
 
       {/* PRIMARY: Session + Live event log (focus for real-data demo) */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 'var(--gap-grid)', marginTop: 24 }}>
-        <SessionMeta session={session} />
+        <SessionMeta
+          session={session}
+          onCourierScan={handleCourierScan}
+          onClientAuth={handleClientAuth}
+          onClientDispute={handleClientDispute}
+        />
         <LiveLog events={events} />
       </div>
 
@@ -281,9 +286,6 @@ function App() {
         <ScenarioRunner
           runningScenario={runningScenario}
           onRun={handleRun}
-          onReset={handleReset}
-          onCreate={handleCreate}
-          session={session}
         />
         <ManualControls
           session={session}

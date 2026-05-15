@@ -1,4 +1,4 @@
-/* Scenario runner — four big scenario cards + new/reset session controls */
+/* Scenario runner — four big scenario cards */
 
 const SCENARIOS = [
   { id: 'A', title: 'Clean delivery',   desc: 'Both handshakes verified, box opened, product removed.', accent: '#4ade80' },
@@ -7,7 +7,7 @@ const SCENARIOS = [
   { id: 'D', title: 'Empty-box fraud',  desc: 'Clean flow, then client disputes EMPTY_BOX.',            accent: '#c084fc' }
 ];
 
-function ScenarioRunner({ runningScenario, onRun, onReset, onCreate, session }) {
+function ScenarioRunner({ runningScenario, onRun, onReset, onCreate }) {
   const Icon = window.StepIcon;
   return (
     <div className="card">
