@@ -115,7 +115,7 @@ void loop() {
     }
   }
 
-  if (runtime.sessionId == "" && !sensors.boxOpen && sensors.productPresent) {
+  if (runtime.sessionId == "" && !sensors.boxOpen) {
     sealSession();
     oled.showState(stateLabel(runtime.state));
   }
@@ -123,13 +123,6 @@ void loop() {
   if (runtime.sessionId != "" && sensors.boxOpen && !previousSensors.boxOpen) {
     sendEvent("BOX_OPENED", sensors);
     runtime.state = OPENED_STATE;
-    oled.showState(stateLabel(runtime.state));
-  }
-
-  if (runtime.sessionId != "" && !sensors.productPresent && !runtime.productRemovedLock) {
-    runtime.productRemovedLock = true;
-    sendEvent("PRODUCT_REMOVED", sensors);
-    runtime.state = PRODUCT_REMOVED_STATE;
     oled.showState(stateLabel(runtime.state));
   }
 
@@ -180,8 +173,7 @@ void sendEvent(const String& eventName, SensorSnapshot sensors) {
   body += "\"timestamp\":" + String(millis()) + ",";
   body += "\"sensor_data\":{";
   body += "\"light\":" + String(sensors.light) + ",";
-  body += "\"accel_norm\":" + String(sensors.accelNorm) + ",";
-  body += "\"product_present\":" + String(sensors.productPresent ? "true" : "false");
+  body += "\"accel_norm\":" + String(sensors.accelNorm);
   body += "}}";
 
   String response = httpRequest("POST", "/api/event", body);
@@ -192,7 +184,7 @@ void sendEvent(const String& eventName, SensorSnapshot sensors) {
 }
 
 void sendImpactEvent(const ImpactResult& impact) {
-  const char* severity = "heavy";
+  const char* severity = (impact.label == IMPACT_HEAVY) ? "heavy" : "light";
   float confidence = impact.confidence;
   if (!isfinite(confidence)) {
     confidence = 1.0f;
